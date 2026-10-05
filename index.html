@@ -6,7 +6,7 @@
   <title>Photobooth - DJ ICE</title>
   <!-- Librairie QR Code -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Librairie ZIP pour exporter toute la galerie -->
+  <!-- Librairie ZIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -64,6 +64,7 @@
       z-index: 20;
     }
 
+    /* Boutons principaux */
     .btn-shoot {
       position: absolute;
       bottom: 40px;
@@ -82,6 +83,12 @@
       transition: all 0.2s ease;
     }
     .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
+
+    #resetBtn {
+      display: none;
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      box-shadow: 0 6px 30px rgba(0, 114, 255, 0.6);
+    }
 
     .btn-gallery-toggle {
       position: absolute;
@@ -115,16 +122,17 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }
     #qrContainer p {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: bold;
       margin-top: 8px;
+      text-align: center;
     }
 
     /* Message de rafraîchissement */
     #reloadNotice {
       position: absolute;
-      bottom: 40px;
-      left: 40px;
+      top: 30px;
+      left: 30px;
       background: rgba(0,0,0,0.7);
       padding: 12px 20px;
       border-radius: 20px;
@@ -132,9 +140,10 @@
       font-size: 1.1rem;
       display: none;
       z-index: 40;
+      border: 1px solid rgba(255,255,255,0.2);
     }
 
-    /* Fenêtre de la Galerie */
+    /* Galerie */
     .gallery-modal {
       position: absolute;
       top: 0;
@@ -217,12 +226,13 @@
 
     <div id="qrContainer">
       <div id="qrcode"></div>
-      <p>📱 Scanne pour télécharger</p>
+      <p>📱 Scanne pour ouvrir<br>la galerie</p>
     </div>
 
-    <div id="reloadNotice">Prêt pour la suivante dans <span id="timerSec">10</span>s...</div>
+    <div id="reloadNotice">Retour caméra dans <span id="timerSec">10</span>s...</div>
 
-    <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">PRENDRE UNE PHOTO</button>
+    <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
+    <button id="resetBtn" class="btn-shoot" onclick="resetPhotobooth()">🔄 REPRENDRE UNE PHOTO</button>
   </div>
 
   <!-- Galerie -->
@@ -244,6 +254,7 @@
     const photoResult = document.getElementById('photoResult');
     const countdownEl = document.getElementById('countdown');
     const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
     const canvas = document.getElementById('canvas');
     const frame = document.getElementById('frame');
     const qrContainer = document.getElementById('qrContainer');
@@ -255,6 +266,10 @@
     const timerSec = document.getElementById('timerSec');
 
     let db;
+    let reloadTimer = null;
+    let qrGenerated = false;
+
+    // Initialisation Base de données
     const request = indexedDB.open("PhotoboothDB", 1);
 
     request.onupgradeneeded = (e) => {
@@ -282,6 +297,7 @@
 
     function startPhotobooth() {
       startBtn.style.display = 'none';
+      resetBtn.style.display = 'none';
       photoResult.style.display = 'none';
       qrContainer.style.display = 'none';
       reloadNotice.style.display = 'none';
@@ -319,7 +335,7 @@
       const imageData = canvas.toDataURL('image/jpeg', 0.90);
       photoResult.src = imageData;
 
-      // Sauvegarde dans la base IndexedDB
+      // Sauvegarde IndexedDB
       const transaction = db.transaction(["photos"], "readwrite");
       const store = transaction.objectStore("photos");
       store.add({ image: imageData, timestamp: Date.now() });
@@ -328,27 +344,41 @@
         updateGalleryUI();
       };
 
-      // QR Code
+      // QR Code vers l'adresse du site web (URL dynamique)
+      const targetURL = window.location.href.split('?')[0];
       qrcodeEl.innerHTML = "";
-      new QRCode(qrcodeEl, { text: imageData, width: 130, height: 130 });
+      new QRCode(qrcodeEl, { text: targetURL, width: 120, height: 120 });
 
       video.style.display = 'none';
       photoResult.style.display = 'block';
       qrContainer.style.display = 'flex';
       reloadNotice.style.display = 'block';
+      resetBtn.style.display = 'block';
 
-      // Décompte de 10 secondes avant rafraîchissement
+      // Décompte de 10 secondes
       let timeLeft = 10;
       timerSec.innerText = timeLeft;
       
-      const reloadInterval = setInterval(() => {
+      if (reloadTimer) clearInterval(reloadTimer);
+      
+      reloadTimer = setInterval(() => {
         timeLeft--;
         timerSec.innerText = timeLeft;
         if (timeLeft <= 0) {
-          clearInterval(reloadInterval);
-          window.location.reload();
+          clearInterval(reloadTimer);
+          resetPhotobooth();
         }
       }, 1000);
+    }
+
+    function resetPhotobooth() {
+      if (reloadTimer) clearInterval(reloadTimer);
+      photoResult.style.display = 'none';
+      qrContainer.style.display = 'none';
+      reloadNotice.style.display = 'none';
+      resetBtn.style.display = 'none';
+      video.style.display = 'block';
+      startBtn.style.display = 'block';
     }
 
     function updateGalleryUI() {
@@ -405,10 +435,11 @@
       };
     }
 
-    // Raccourci Clavier Touche Espace
+    // Touche Espace
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && startBtn.style.display !== 'none') {
-        startPhotobooth();
+      if (e.code === 'Space') {
+        if (startBtn.style.display !== 'none') startPhotobooth();
+        else if (resetBtn.style.display !== 'none') resetPhotobooth();
       }
     });
 
