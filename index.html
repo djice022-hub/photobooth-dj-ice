@@ -10,7 +10,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Tes identifiants Firebase intégrés
+    // Tes identifiants Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
       authDomain: "photobooth-dj-ice.firebaseapp.com",
@@ -128,7 +128,6 @@
     const reloadNotice = document.getElementById('reloadNotice');
     const frameImg = document.getElementById('frame');
 
-    // Attendre l'initialisation de Firebase
     const checkFirebase = setInterval(() => {
       if (window.db && window.firestoreTools) {
         clearInterval(checkFirebase);
@@ -140,7 +139,6 @@
       const { collection, onSnapshot, query, orderBy } = window.firestoreTools;
       const q = query(collection(window.db, "photos"), orderBy("timestamp", "desc"));
 
-      // Synchronisation instantanée
       onSnapshot(q, (snapshot) => {
         localPhotos = [];
         snapshot.forEach((doc) => {
@@ -165,17 +163,14 @@
       const h = video.videoHeight || 1200;
       canvas.width = w; canvas.height = h;
       
-      // Dessin de la caméra
       context.drawImage(video, 0, 0, w, h);
 
-      // Dessin du cadre overlay s'il existe
       if (frameImg.src && frameImg.style.display !== 'none') {
         context.drawImage(frameImg, 0, 0, w, h);
       }
 
       const imageData = canvas.toDataURL('image/jpeg', 0.80);
 
-      // Envoi direct à Firebase
       const { collection, addDoc } = window.firestoreTools;
       addDoc(collection(window.db, "photos"), {
         image: imageData,
