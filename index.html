@@ -229,10 +229,10 @@
       <p>📱 Scanne pour ouvrir<br>la galerie</p>
     </div>
 
-    <div id="reloadNotice">Retour caméra dans <span id="timerSec">10</span>s...</div>
+    <div id="reloadNotice">Redémarrage automatique dans <span id="timerSec">10</span>s...</div>
 
     <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
-    <button id="resetBtn" class="btn-shoot" onclick="resetPhotobooth()">🔄 REPRENDRE UNE PHOTO</button>
+    <button id="resetBtn" class="btn-shoot" onclick="resetPhotobooth()">🔄 NOUVELLE PHOTO</button>
   </div>
 
   <!-- Galerie -->
@@ -267,7 +267,6 @@
 
     let db;
     let reloadTimer = null;
-    let qrGenerated = false;
 
     // Initialisation Base de données
     const request = indexedDB.open("PhotoboothDB", 1);
@@ -335,7 +334,7 @@
       const imageData = canvas.toDataURL('image/jpeg', 0.90);
       photoResult.src = imageData;
 
-      // Sauvegarde IndexedDB
+      // Sauvegarde dans la base de données
       const transaction = db.transaction(["photos"], "readwrite");
       const store = transaction.objectStore("photos");
       store.add({ image: imageData, timestamp: Date.now() });
@@ -344,7 +343,7 @@
         updateGalleryUI();
       };
 
-      // QR Code vers l'adresse du site web (URL dynamique)
+      // QR Code vers l'adresse du site
       const targetURL = window.location.href.split('?')[0];
       qrcodeEl.innerHTML = "";
       new QRCode(qrcodeEl, { text: targetURL, width: 120, height: 120 });
@@ -355,7 +354,7 @@
       reloadNotice.style.display = 'block';
       resetBtn.style.display = 'block';
 
-      // Décompte de 10 secondes
+      // Décompte de 10 secondes avant RAFRAÎCHISSEMENT PAGE
       let timeLeft = 10;
       timerSec.innerText = timeLeft;
       
@@ -366,19 +365,14 @@
         timerSec.innerText = timeLeft;
         if (timeLeft <= 0) {
           clearInterval(reloadTimer);
-          resetPhotobooth();
+          window.location.reload(); // RAFRAÎCHISSEMENT FORCE DU NAVIGATEUR
         }
       }, 1000);
     }
 
     function resetPhotobooth() {
       if (reloadTimer) clearInterval(reloadTimer);
-      photoResult.style.display = 'none';
-      qrContainer.style.display = 'none';
-      reloadNotice.style.display = 'none';
-      resetBtn.style.display = 'none';
-      video.style.display = 'block';
-      startBtn.style.display = 'block';
+      window.location.reload(); // RAFRAÎCHISSEMENT FORCE IMMEDIAT
     }
 
     function updateGalleryUI() {
