@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Photobooth - DJ ICE</title>
-  <!-- Librairie QR Code -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Librairie ZIP -->
+  <!-- Librairie ZIP pour la galerie -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -83,7 +81,7 @@
     }
     .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
 
-    /* Boutons en haut */
+    /* Boutons de la barre supérieure */
     .top-bar {
       position: absolute;
       top: 20px;
@@ -105,48 +103,39 @@
       font-size: 1rem;
     }
 
-    /* Container du QR Code */
-    #qrContainer {
+    /* Banner d'information en bas une fois la photo prise */
+    #djNotice {
       position: absolute;
-      bottom: 30px;
-      right: 30px;
-      background: rgba(255, 255, 255, 0.95);
-      padding: 15px;
-      border-radius: 16px;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      z-index: 40;
-      color: #000;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-    }
-    #qrContainer p {
-      font-size: 0.85rem;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #ff0055;
+      padding: 20px 40px;
+      border-radius: 40px;
+      font-size: 1.8rem;
       font-weight: bold;
-      margin-top: 8px;
+      color: #fff;
       text-align: center;
+      display: none;
+      z-index: 40;
+      box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+      white-space: nowrap;
     }
 
-    /* Status de chargement QR Code */
-    #qrStatus {
-      font-size: 0.8rem;
-      color: #666;
-      margin-top: 5px;
-    }
-
-    /* Message de rafraîchissement */
+    /* Décompte de temps */
     #reloadNotice {
       position: absolute;
       top: 30px;
       left: 30px;
-      background: rgba(0,0,0,0.7);
-      padding: 12px 20px;
+      background: rgba(0,0,0,0.75);
+      padding: 12px 25px;
       border-radius: 20px;
       font-weight: bold;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       display: none;
       z-index: 40;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
     }
 
     /* Galerie */
@@ -228,9 +217,7 @@
       font-weight: bold;
     }
 
-    .btn-delete {
-      background: rgba(255, 0, 0, 0.8);
-    }
+    .btn-delete { background: rgba(255, 0, 0, 0.8); }
   </style>
 </head>
 <body>
@@ -243,17 +230,13 @@
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
-      <button class="btn-top" onclick="forceRefresh()">🔄 Rafraîchir</button>
+      <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
       <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
     </div>
 
-    <div id="qrContainer">
-      <div id="qrcode"></div>
-      <p>📱 Scanne pour téléchager<br>ta photo sur ton téléphone</p>
-      <span id="qrStatus">Génération du lien...</span>
-    </div>
+    <div id="djNotice">📱 Venez chercher votre photo auprès du DJ</div>
 
-    <div id="reloadNotice">Retour caméra dans <span id="timerSec">15</span>s...</div>
+    <div id="reloadNotice">Photo affichée pendant <span id="timerSec">15</span>s...</div>
 
     <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
   </div>
@@ -261,7 +244,7 @@
   <!-- Galerie -->
   <div id="galleryModal" class="gallery-modal">
     <div class="gallery-header">
-      <h2>Galerie de la Soirée</h2>
+      <h2>Galerie de la Soirée - DJ ICE</h2>
       <div class="gallery-actions">
         <button class="btn-action btn-zip" onclick="downloadAllZip()">Tout télécharger (.zip)</button>
         <button class="btn-action btn-close" onclick="toggleGallery()">Fermer ❌</button>
@@ -279,9 +262,7 @@
     const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('canvas');
     const frame = document.getElementById('frame');
-    const qrContainer = document.getElementById('qrContainer');
-    const qrcodeEl = document.getElementById('qrcode');
-    const qrStatus = document.getElementById('qrStatus');
+    const djNotice = document.getElementById('djNotice');
     const galleryModal = document.getElementById('galleryModal');
     const galleryGrid = document.getElementById('galleryGrid');
     const photoCountEl = document.getElementById('photoCount');
@@ -291,10 +272,7 @@
     let db;
     let reloadTimer = null;
 
-    // Client ID anonyme public Imgur pour l'envoi direct des photos
-    const IMGUR_CLIENT_ID = 'c90be68d189196d';
-
-    // Initialisation IndexedDB
+    // Initialisation Base de données IndexedDB
     const request = indexedDB.open("PhotoboothDB", 1);
 
     request.onupgradeneeded = (e) => {
@@ -320,14 +298,19 @@
       }
     }
 
-    function forceRefresh() {
-      window.location.reload(true);
+    function resetToCamera() {
+      if (reloadTimer) clearInterval(reloadTimer);
+      photoResult.style.display = 'none';
+      djNotice.style.display = 'none';
+      reloadNotice.style.display = 'none';
+      video.style.display = 'block';
+      startBtn.style.display = 'block';
     }
 
     function startPhotobooth() {
       startBtn.style.display = 'none';
       photoResult.style.display = 'none';
-      qrContainer.style.display = 'none';
+      djNotice.style.display = 'none';
       reloadNotice.style.display = 'none';
       video.style.display = 'block';
       
@@ -347,7 +330,7 @@
       }, 1000);
     }
 
-    async function takePhoto() {
+    function takePhoto() {
       const context = canvas.getContext('2d');
       const w = video.videoWidth || 1920;
       const h = video.videoHeight || 1200;
@@ -360,10 +343,16 @@
         context.drawImage(frame, 0, 0, w, h);
       }
 
-      const imageData = canvas.toDataURL('image/jpeg', 0.90);
-      photoResult.src = imageData;
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
 
-      // Sauvegarde locale dans IndexedDB
+      // Afficher la photo et le message
+      photoResult.src = imageData;
+      video.style.display = 'none';
+      photoResult.style.display = 'block';
+      djNotice.style.display = 'block';
+      reloadNotice.style.display = 'block';
+
+      // Sauvegarder la photo dans la galerie locale
       const transaction = db.transaction(["photos"], "readwrite");
       const store = transaction.objectStore("photos");
       store.add({ image: imageData, timestamp: Date.now() });
@@ -372,18 +361,7 @@
         updateGalleryUI();
       };
 
-      video.style.display = 'none';
-      photoResult.style.display = 'block';
-      qrContainer.style.display = 'flex';
-      reloadNotice.style.display = 'block';
-
-      qrcodeEl.innerHTML = "";
-      qrStatus.innerText = "⏳ Chargement du QR Code...";
-
-      // Upload de la photo en ligne pour accès smartphone
-      uploadAndGenerateQR(imageData);
-
-      // Décompte 15 secondes
+      // Décompte de 15 secondes
       let timeLeft = 15;
       timerSec.innerText = timeLeft;
       
@@ -394,38 +372,9 @@
         timerSec.innerText = timeLeft;
         if (timeLeft <= 0) {
           clearInterval(reloadTimer);
-          forceRefresh();
+          resetToCamera(); // Retour à la caméra
         }
       }, 1000);
-    }
-
-    async function uploadAndGenerateQR(base64Image) {
-      try {
-        const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg);base64,/, "");
-        const formData = new FormData();
-        formData.append("image", cleanBase64);
-
-        const response = await fetch("https://api.imgur.com/3/image", {
-          method: "POST",
-          headers: {
-            Authorization: `Client-ID ${IMGUR_CLIENT_ID}`
-          },
-          body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          const imageUrl = data.data.link;
-          qrcodeEl.innerHTML = "";
-          new QRCode(qrcodeEl, { text: imageUrl, width: 130, height: 130 });
-          qrStatus.innerText = "✅ Prêt à être scanné !";
-        } else {
-          qrStatus.innerText = "⚠️ Connexion requise";
-        }
-      } catch (err) {
-        qrStatus.innerText = "⚠️ Hors ligne (Sauvegardé localement)";
-      }
     }
 
     function updateGalleryUI() {
