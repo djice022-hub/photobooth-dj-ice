@@ -35,7 +35,6 @@
       left: 0;
     }
     
-    /* Dynamic frame overlay layer */
     .overlay-frame {
       position: absolute;
       top: 0;
@@ -43,14 +42,8 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
+      object-fit: fill; 
       z-index: 10;
-      display: flex;
-    }
-
-    .overlay-frame svg, .overlay-frame img {
-      width: 100%;
-      height: 100%;
-      object-fit: fill;
     }
     
     #photoResult { display: none; z-index: 5; }
@@ -69,7 +62,7 @@
       z-index: 20;
     }
 
-    /* Bouton principal de prise de vue */
+    /* Bouton principal */
     .btn-shoot {
       position: absolute;
       bottom: 40px;
@@ -85,7 +78,6 @@
       font-weight: bold;
       z-index: 30;
       box-shadow: 0 6px 30px rgba(255, 0, 85, 0.6);
-      transition: all 0.2s ease;
     }
     .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
 
@@ -95,15 +87,13 @@
       top: 20px;
       right: 20px;
       display: flex;
-      gap: 12px;
+      gap: 15px;
       z-index: 35;
-      flex-wrap: wrap;
-      justify-content: flex-end;
     }
 
     .btn-top {
       padding: 12px 20px;
-      background: rgba(0, 0, 0, 0.65);
+      background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(10px);
       color: white;
       border: 1px solid rgba(255, 255, 255, 0.3);
@@ -111,10 +101,6 @@
       cursor: pointer;
       font-weight: bold;
       font-size: 1rem;
-      transition: background 0.2s;
-    }
-    .btn-top:hover {
-      background: rgba(255, 255, 255, 0.2);
     }
 
     /* Banner d'information en bas une fois la photo prise */
@@ -152,84 +138,8 @@
       border: 1px solid rgba(255,255,255,0.3);
     }
 
-    /* Modal de Sélection des Cadres */
-    .modal-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-      display: none;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .modal-card {
-      background: #111;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 25px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: 10px;
-    }
-
-    .frame-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .frame-option {
-      border: 2px solid #333;
-      border-radius: 12px;
-      padding: 15px;
-      text-align: center;
-      cursor: pointer;
-      background: #181818;
-      transition: all 0.2s ease;
-    }
-    .frame-option:hover {
-      border-color: #ff0055;
-      background: #222;
-    }
-    .frame-option.active {
-      border-color: #ff0055;
-      background: rgba(255, 0, 85, 0.15);
-      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
-    }
-    .frame-option-title {
-      font-size: 1.1rem;
-      font-weight: bold;
-      margin-top: 8px;
-    }
-
-    .custom-upload-box {
-      margin-top: 15px;
-      padding: 15px;
-      border: 2px dashed rgba(255,255,255,0.3);
-      border-radius: 12px;
-      text-align: center;
-      background: rgba(255,255,255,0.03);
-    }
-
-    /* Galerie */
-    .gallery-modal {
+    /* Modales (Galerie & Cadres) */
+    .modal {
       position: absolute;
       top: 0;
       left: 0;
@@ -243,14 +153,14 @@
       overflow-y: auto;
     }
     
-    .gallery-header {
+    .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 25px;
     }
 
-    .gallery-actions {
+    .modal-actions {
       display: flex;
       gap: 15px;
     }
@@ -265,7 +175,7 @@
     .btn-zip { background: #00cc66; color: white; }
     .btn-close { background: #ff3333; color: white; }
     
-    .gallery-grid {
+    .grid-container {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 20px;
@@ -308,6 +218,78 @@
     }
 
     .btn-delete { background: rgba(255, 0, 0, 0.8); }
+
+    /* Style Sélection de cadre */
+    .frame-card {
+      background: #111;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .frame-card.active {
+      border-color: #ff0055;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+    }
+
+    .frame-preview {
+      width: 100%;
+      height: 120px;
+      border-radius: 8px;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .frame-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .upload-box {
+      border: 2px dashed #ff0055;
+      background: rgba(255, 0, 85, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 25px;
+      cursor: pointer;
+    }
+
+    .upload-box input {
+      display: none;
+    }
+
+    .btn-delete-frame-card {
+      margin-top: 10px;
+      width: 100%;
+      background: rgba(255, 0, 0, 0.8);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .btn-delete-frame-card:hover {
+      background: rgba(255, 0, 0, 1);
+    }
   </style>
 </head>
 <body>
@@ -315,16 +297,14 @@
   <div class="container">
     <video id="webcam" autoplay playsinline></video>
     <img id="photoResult" alt="Photo prise" />
-    
-    <!-- Dynamic Frame Overlay -->
-    <div id="frameOverlay" class="overlay-frame"></div>
+    <img id="frame" class="overlay-frame" src="" alt="Cadre" onError="this.style.display='none'" />
     
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
-      <button class="btn-top" onclick="toggleFrameModal()">🖼️ Changer de cadre</button>
+      <button class="btn-top" onclick="toggleFrameModal()">🖼️ Cadres</button>
       <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
-      <button class="btn-top" onclick="toggleGallery()">📁 Galerie (<span id="photoCount">0</span>)</button>
+      <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
     </div>
 
     <div id="djNotice">📱 Venez chercher votre photo auprès du DJ</div>
@@ -334,49 +314,37 @@
     <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
   </div>
 
-  <!-- Modal Choix du Cadre -->
-  <div id="frameModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2>Sélectionner un cadre</h2>
-        <button class="btn-action btn-close" onclick="toggleFrameModal()">❌</button>
-      </div>
-      <div class="frame-grid">
-        <div class="frame-option active" id="opt-neon" onclick="selectFrame('neon')">
-          <div style="font-size: 2rem;">⚡</div>
-          <div class="frame-option-title">DJ ICE - Néon</div>
-        </div>
-        <div class="frame-option" id="opt-wedding" onclick="selectFrame('wedding')">
-          <div style="font-size: 2rem;">✨</div>
-          <div class="frame-option-title">Élégant / Mariage</div>
-        </div>
-        <div class="frame-option" id="opt-festive" onclick="selectFrame('festive')">
-          <div style="font-size: 2rem;">🎉</div>
-          <div class="frame-option-title">Soirée Festive</div>
-        </div>
-        <div class="frame-option" id="opt-none" onclick="selectFrame('none')">
-          <div style="font-size: 2rem;">🚫</div>
-          <div class="frame-option-title">Sans cadre</div>
-        </div>
-      </div>
+  <!-- Modal Gestion des Cadres -->
+  <div id="frameModal" class="modal">
+    <div class="modal-header">
+      <h2>Choisir ou Ajouter un Cadre</h2>
+      <button class="btn-action btn-close" onclick="toggleFrameModal()">Fermer ❌</button>
+    </div>
 
-      <div class="custom-upload-box">
-        <p style="margin-bottom: 8px; font-weight: bold;">📁 Importer votre propre cadre (.png transparent)</p>
-        <input type="file" id="customFrameInput" accept="image/png" onchange="handleCustomFrameUpload(event)" style="font-size: 0.9rem;" />
+    <label class="upload-box">
+      <h3>➕ Importer un nouveau cadre (.PNG transparent)</h3>
+      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Il sera sauvegardé automatiquement dans l'application</p>
+      <input type="file" id="frameInput" accept="image/png" onchange="handleFrameUpload(event)">
+    </label>
+
+    <div id="frameGrid" class="grid-container">
+      <div class="frame-card active" id="card-none" onclick="selectFrame(null, 'card-none')">
+        <div class="frame-preview" style="color: #666; font-weight: bold;">SANS CADRE</div>
+        <span>Aucun cadre</span>
       </div>
     </div>
   </div>
 
-  <!-- Galerie -->
-  <div id="galleryModal" class="gallery-modal">
-    <div class="gallery-header">
+  <!-- Modal Galerie -->
+  <div id="galleryModal" class="modal">
+    <div class="modal-header">
       <h2>Galerie de la Soirée - DJ ICE</h2>
-      <div class="gallery-actions">
+      <div class="modal-actions">
         <button class="btn-action btn-zip" onclick="downloadAllZip()">Tout télécharger (.zip)</button>
         <button class="btn-action btn-close" onclick="toggleGallery()">Fermer ❌</button>
       </div>
     </div>
-    <div id="galleryGrid" class="gallery-grid"></div>
+    <div id="galleryGrid" class="grid-container"></div>
   </div>
 
   <canvas id="canvas" style="display:none;"></canvas>
@@ -387,79 +355,37 @@
     const countdownEl = document.getElementById('countdown');
     const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('canvas');
-    const frameOverlay = document.getElementById('frameOverlay');
+    const frame = document.getElementById('frame');
     const djNotice = document.getElementById('djNotice');
     const galleryModal = document.getElementById('galleryModal');
     const frameModal = document.getElementById('frameModal');
     const galleryGrid = document.getElementById('galleryGrid');
+    const frameGrid = document.getElementById('frameGrid');
     const photoCountEl = document.getElementById('photoCount');
     const reloadNotice = document.getElementById('reloadNotice');
     const timerSec = document.getElementById('timerSec');
 
     let db;
     let reloadTimer = null;
-    let currentFrame = 'neon'; // Options: 'neon', 'wedding', 'festive', 'none', 'custom'
-    let customFrameImg = null;
+    let selectedFrameData = null;
 
-    // SVG Templates for Frame Rendering
-    const FRAME_SVGS = {
-      neon: `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ff0055" />
-              <stop offset="50%" stop-color="#00f0ff" />
-              <stop offset="100%" stop-color="#ff0055" />
-            </linearGradient>
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="10" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <rect x="20" y="20" width="1880" height="1040" fill="none" stroke="url(#neonGrad)" stroke-width="12" filter="url(#glow)" />
-          <rect x="35" y="35" width="1850" height="1010" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.6" />
-          <!-- Header DJ ICE -->
-          <rect x="760" y="20" width="400" height="60" rx="30" fill="#000" stroke="url(#neonGrad)" stroke-width="4" />
-          <text x="960" y="58" font-family="'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="900" fill="#00f0ff" text-anchor="middle" letter-spacing="4">DJ ICE</text>
-          <!-- Bottom badge -->
-          <text x="960" y="1030" font-family="'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="2">PARTY NIGHT • PHOTOBOOTH</text>
-        </svg>
-      `,
-      wedding: `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
-          <rect x="30" y="30" width="1860" height="1020" fill="none" stroke="#d4af37" stroke-width="6" />
-          <rect x="45" y="45" width="1830" height="990" fill="none" stroke="#d4af37" stroke-width="2" stroke-dasharray="10 5" />
-          <text x="960" y="90" font-family="Georgia, serif" font-size="36" font-style="italic" fill="#d4af37" text-anchor="middle">Souverains &amp; Invités</text>
-          <text x="960" y="1020" font-family="Georgia, serif" font-size="28" font-style="italic" fill="#d4af37" text-anchor="middle">Un jour inoubliable • DJ ICE</text>
-        </svg>
-      `,
-      festive: `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
-          <rect x="25" y="25" width="1870" height="1030" fill="none" stroke="#ff0055" stroke-width="10" />
-          <circle cx="50" cy="50" r="25" fill="#ffcc00" />
-          <circle cx="1870" cy="50" r="25" fill="#00cc66" />
-          <circle cx="50" cy="1030" r="25" fill="#00ccff" />
-          <circle cx="1870" cy="1030" r="25" fill="#ff0055" />
-          <text x="960" y="1015" font-family="Arial, sans-serif" font-size="35" font-weight="900" fill="#ffcc00" text-anchor="middle" letter-spacing="3">🎉 LET'S PARTY WITH DJ ICE 🎉</text>
-        </svg>
-      `
-    };
-
-    const request = indexedDB.open("PhotoboothDB", 1);
+    // Initialisation IndexedDB avec table "photos" et "frames"
+    const request = indexedDB.open("PhotoboothDB", 2);
 
     request.onupgradeneeded = (e) => {
       db = e.target.result;
       if (!db.objectStoreNames.contains("photos")) {
         db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
       }
+      if (!db.objectStoreNames.contains("frames")) {
+        db.createObjectStore("frames", { keyPath: "id", autoIncrement: true });
+      }
     };
 
     request.onsuccess = (e) => {
       db = e.target.result;
       updateGalleryUI();
+      loadSavedFrames();
     };
 
     async function initCamera() {
@@ -470,53 +396,6 @@
         video.srcObject = stream;
       } catch (err) {
         alert("Erreur d'accès à la caméra : " + err);
-      }
-      renderFrameOverlay();
-    }
-
-    function toggleFrameModal() {
-      frameModal.style.display = (frameModal.style.display === 'flex') ? 'none' : 'flex';
-    }
-
-    function selectFrame(frameKey) {
-      currentFrame = frameKey;
-      document.querySelectorAll('.frame-option').forEach(el => el.classList.remove('active'));
-      const activeOpt = document.getElementById(`opt-${frameKey}`);
-      if (activeOpt) activeOpt.classList.add('active');
-      
-      renderFrameOverlay();
-      toggleFrameModal();
-    }
-
-    function handleCustomFrameUpload(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const img = new Image();
-          img.onload = function() {
-            customFrameImg = img;
-            currentFrame = 'custom';
-            document.querySelectorAll('.frame-option').forEach(el => el.classList.remove('active'));
-            renderFrameOverlay();
-            toggleFrameModal();
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    function renderFrameOverlay() {
-      frameOverlay.innerHTML = '';
-      if (currentFrame === 'none') return;
-
-      if (currentFrame === 'custom' && customFrameImg) {
-        const imgEl = document.createElement('img');
-        imgEl.src = customFrameImg.src;
-        frameOverlay.appendChild(imgEl);
-      } else if (FRAME_SVGS[currentFrame]) {
-        frameOverlay.innerHTML = FRAME_SVGS[currentFrame];
       }
     }
 
@@ -559,68 +438,145 @@
       canvas.width = w;
       canvas.height = h;
 
-      // Draw webcam feed
       context.drawImage(video, 0, 0, w, h);
 
-      // Function to finish photo creation after overlay drawing
-      const finalizePhoto = () => {
-        const imageData = canvas.toDataURL('image/jpeg', 0.88);
+      if (frame.src && frame.style.display !== 'none' && frame.complete && frame.naturalWidth !== 0) {
+        context.drawImage(frame, 0, 0, w, h);
+      }
 
-        // Display photo and info banner
-        photoResult.src = imageData;
-        video.style.display = 'none';
-        photoResult.style.display = 'block';
-        djNotice.style.display = 'block';
-        reloadNotice.style.display = 'block';
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
 
-        // Save in IndexedDB gallery
-        const transaction = db.transaction(["photos"], "readwrite");
-        const store = transaction.objectStore("photos");
-        store.add({ image: imageData, timestamp: Date.now() });
+      photoResult.src = imageData;
+      video.style.display = 'none';
+      photoResult.style.display = 'block';
+      djNotice.style.display = 'block';
+      reloadNotice.style.display = 'block';
 
-        transaction.oncomplete = () => {
-          updateGalleryUI();
-        };
+      const transaction = db.transaction(["photos"], "readwrite");
+      const store = transaction.objectStore("photos");
+      store.add({ image: imageData, timestamp: Date.now() });
 
-        // 15-second timer countdown
-        let timeLeft = 15;
-        timerSec.innerText = timeLeft;
-        
-        if (reloadTimer) clearInterval(reloadTimer);
-        
-        reloadTimer = setInterval(() => {
-          timeLeft--;
-          timerSec.innerText = timeLeft;
-          if (timeLeft <= 0) {
-            clearInterval(reloadTimer);
-            resetToCamera();
-          }
-        }, 1000);
+      transaction.oncomplete = () => {
+        updateGalleryUI();
       };
 
-      // Draw active frame onto canvas
-      if (currentFrame === 'none') {
-        finalizePhoto();
-      } else if (currentFrame === 'custom' && customFrameImg) {
-        context.drawImage(customFrameImg, 0, 0, w, h);
-        finalizePhoto();
-      } else if (FRAME_SVGS[currentFrame]) {
-        const svgStr = FRAME_SVGS[currentFrame];
-        const img = new Image();
-        const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
+      let timeLeft = 15;
+      timerSec.innerText = timeLeft;
+      
+      if (reloadTimer) clearInterval(reloadTimer);
+      
+      reloadTimer = setInterval(() => {
+        timeLeft--;
+        timerSec.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(reloadTimer);
+          resetToCamera();
+        }
+      }, 1000);
+    }
 
-        img.onload = function() {
-          context.drawImage(img, 0, 0, w, h);
-          URL.revokeObjectURL(url);
-          finalizePhoto();
+    // GESTION DES CADRES
+    function handleFrameUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const base64Frame = event.target.result;
+        const name = file.name.replace('.png', '');
+
+        // Sauvegarde dans IndexedDB
+        const transaction = db.transaction(["frames"], "readwrite");
+        const store = transaction.objectStore("frames");
+        const addReq = store.add({ name: name, image: base64Frame });
+
+        addReq.onsuccess = (ev) => {
+          const newId = ev.target.result;
+          loadSavedFrames(newId);
         };
-        img.src = url;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadSavedFrames(autoSelectId = null) {
+      if (!db) return;
+      const transaction = db.transaction(["frames"], "readonly");
+      const store = transaction.objectStore("frames");
+      const getAll = store.getAll();
+
+      getAll.onsuccess = () => {
+        const framesList = getAll.result;
+
+        // Conserver uniquement l'option Sans Cadre au début
+        frameGrid.innerHTML = `
+          <div class="frame-card ${!selectedFrameData ? 'active' : ''}" id="card-none" onclick="selectFrame(null, 'card-none')">
+            <div class="frame-preview" style="color: #666; font-weight: bold;">SANS CADRE</div>
+            <span>Aucun cadre</span>
+          </div>
+        `;
+
+        framesList.forEach((item) => {
+          const cardId = `card-frame-${item.id}`;
+          const isSelected = selectedFrameData && selectedFrameData.id === item.id;
+
+          const card = document.createElement('div');
+          card.className = `frame-card ${isSelected || autoSelectId === item.id ? 'active' : ''}`;
+          card.id = cardId;
+          card.onclick = () => selectFrame(item, cardId);
+
+          card.innerHTML = `
+            <div class="frame-preview">
+              <img src="${item.image}" alt="${item.name}" />
+            </div>
+            <span>${item.name}</span>
+            <button class="btn-delete-frame-card" onclick="deleteFrame(event, ${item.id})">🗑️ Supprimer</button>
+          `;
+
+          frameGrid.appendChild(card);
+
+          if (autoSelectId === item.id) {
+            selectFrame(item, cardId);
+          }
+        });
+      };
+    }
+
+    function selectFrame(frameObj, cardId) {
+      document.querySelectorAll('.frame-card').forEach(c => c.classList.remove('active'));
+      document.getElementById(cardId).classList.add('active');
+
+      if (!frameObj) {
+        selectedFrameData = null;
+        frame.src = "";
+        frame.style.display = 'none';
       } else {
-        finalizePhoto();
+        selectedFrameData = frameObj;
+        frame.src = frameObj.image;
+        frame.style.display = 'block';
       }
     }
 
+    function deleteFrame(e, id) {
+      e.stopPropagation();
+      if (confirm("Voulez-vous vraiment supprimer ce cadre de vos sauvegardes ?")) {
+        const transaction = db.transaction(["frames"], "readwrite");
+        const store = transaction.objectStore("frames");
+        store.delete(id);
+
+        transaction.oncomplete = () => {
+          if (selectedFrameData && selectedFrameData.id === id) {
+            selectFrame(null, 'card-none');
+          }
+          loadSavedFrames();
+        };
+      }
+    }
+
+    function toggleFrameModal() {
+      frameModal.style.display = (frameModal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    // GESTION GALERIE
     function updateGalleryUI() {
       if (!db) return;
       const transaction = db.transaction(["photos"], "readonly");
@@ -690,9 +646,8 @@
       };
     }
 
-    // Key shortcut
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && startBtn.style.display !== 'none' && frameModal.style.display !== 'flex' && galleryModal.style.display !== 'flex') {
+      if (e.code === 'Space' && startBtn.style.display !== 'none') {
         startPhotobooth();
       }
     });
