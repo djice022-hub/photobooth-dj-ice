@@ -4,15 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Photobooth - DJ ICE</title>
+  <!-- Librairie QR Code -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Librairie ZIP pour exporter toute la galerie -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
-    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: #000;
       color: white;
@@ -20,18 +17,17 @@
       height: 100vh;
       width: 100vw;
       overflow: hidden;
+      user-select: none;
     }
-
-    .viewport {
+    
+    .container {
       position: relative;
       width: 100vw;
       height: 100vh;
       background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;
     }
-
+    
     video, #photoResult {
       width: 100%;
       height: 100%;
@@ -40,17 +36,7 @@
       top: 0;
       left: 0;
     }
-
-    video {
-      z-index: 1;
-      transform: scaleX(-1);
-    }
-
-    #photoResult {
-      display: none;
-      z-index: 5;
-    }
-
+    
     .overlay-frame {
       position: absolute;
       top: 0;
@@ -61,247 +47,191 @@
       object-fit: fill; 
       z-index: 10;
     }
-
+    
+    #photoResult { display: none; z-index: 5; }
+    video { z-index: 1; }
+    
     .countdown {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 12rem;
+      font-size: 14rem;
       font-weight: 900;
       color: #fff;
-      text-shadow: 0 0 30px rgba(0,0,0,0.9), 0 0 10px rgba(255,0,85,0.8);
+      text-shadow: 0 0 40px rgba(0,0,0,0.9);
       display: none;
       z-index: 20;
-      animation: pulse 0.8s infinite alternate;
     }
 
-    @keyframes pulse {
-      from { transform: translate(-50%, -50%) scale(1); }
-      to { transform: translate(-50%, -50%) scale(1.15); }
-    }
-
-    .flash {
+    .btn-shoot {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      opacity: 0;
-      z-index: 35;
-      pointer-events: none;
-    }
-
-    .flash-active {
-      animation: flashAnim 0.4s ease-out;
-    }
-
-    @keyframes flashAnim {
-      0% { opacity: 1; }
-      100% { opacity: 0; }
-    }
-
-    .controls {
-      position: absolute;
-      bottom: 30px;
+      bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
-      display: flex;
-      gap: 15px;
-      z-index: 30;
-    }
-
-    .btn {
-      padding: 16px 36px;
-      font-size: 1.4rem;
+      padding: 22px 60px;
+      font-size: 2rem;
       background: linear-gradient(135deg, #ff0055, #ff5500);
       color: white;
       border: none;
       border-radius: 50px;
       cursor: pointer;
-      font-weight: 800;
-      letter-spacing: 1px;
-      box-shadow: 0 4px 20px rgba(255, 0, 85, 0.5);
+      font-weight: bold;
+      z-index: 30;
+      box-shadow: 0 6px 30px rgba(255, 0, 85, 0.6);
       transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
+    .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
 
-    .btn:active {
-      transform: scale(0.95);
-    }
-
-    .btn-secondary {
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.3);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      font-size: 1.2rem;
-      padding: 16px 24px;
-    }
-
-    .btn-danger {
-      background: rgba(220, 53, 69, 0.8);
-    }
-
-    .result-overlay {
+    .btn-gallery-toggle {
       position: absolute;
-      bottom: 25px;
-      right: 25px;
-      background: rgba(15, 15, 20, 0.9);
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 35;
+      font-size: 1.1rem;
+    }
+
+    /* Container du QR Code */
+    #qrContainer {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      background: rgba(255, 255, 255, 0.95);
       padding: 15px;
       border-radius: 16px;
       display: none;
       flex-direction: column;
       align-items: center;
       z-index: 40;
-      color: #fff;
+      color: #000;
       box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     }
-
-    .qr-title {
+    #qrContainer p {
       font-size: 0.9rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #ff0055;
-      text-transform: uppercase;
+      font-weight: bold;
+      margin-top: 8px;
     }
 
-    #qrcode {
-      background: white;
-      padding: 8px;
-      border-radius: 8px;
+    /* Message de rafraîchissement */
+    #reloadNotice {
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      background: rgba(0,0,0,0.7);
+      padding: 12px 20px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      display: none;
+      z-index: 40;
     }
 
+    /* Fenêtre de la Galerie */
     .gallery-modal {
       position: absolute;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(10, 10, 12, 0.98);
-      z-index: 50;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 100;
       display: none;
       flex-direction: column;
-      padding: 25px;
+      padding: 30px;
+      overflow-y: auto;
     }
-
+    
     .gallery-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: 15px;
-    }
-
-    .gallery-title {
-      font-size: 1.8rem;
-      color: #ff0055;
-      font-weight: bold;
+      margin-bottom: 25px;
     }
 
     .gallery-actions {
       display: flex;
-      gap: 10px;
+      gap: 15px;
     }
 
+    .btn-action {
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-zip { background: #00cc66; color: white; }
+    .btn-close { background: #ff3333; color: white; }
+    
     .gallery-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 15px;
-      overflow-y: auto;
-      height: 100%;
-      padding-right: 5px;
+      gap: 20px;
     }
 
-    .gallery-card {
+    .gallery-item {
       position: relative;
+      aspect-ratio: 16 / 10;
       border-radius: 10px;
       overflow: hidden;
-      border: 2px solid #222;
-      background: #151515;
-      aspect-ratio: 16/10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border: 2px solid #333;
     }
 
-    .gallery-card img {
+    .gallery-item img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
 
-    .gallery-card-actions {
+    .gallery-item a {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(transparent, rgba(0,0,0,0.9));
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    .gallery-card:hover .gallery-card-actions {
-      opacity: 1;
-    }
-
-    .icon-btn {
-      background: rgba(255,255,255,0.2);
-      border: none;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
       color: white;
       padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
+      border-radius: 15px;
       text-decoration: none;
-    }
-
-    .empty-msg {
-      grid-column: 1 / -1;
-      text-align: center;
-      margin-top: 50px;
-      color: #666;
-      font-size: 1.2rem;
+      font-size: 0.85rem;
     }
   </style>
 </head>
 <body>
 
-  <div class="viewport">
+  <div class="container">
     <video id="webcam" autoplay playsinline></video>
     <img id="photoResult" alt="Photo prise" />
-    
-    <img id="frame" class="overlay-frame" src="cadre.png" alt="Cadre" onError="this.style.opacity='0'" />
+    <img id="frame" class="overlay-frame" src="cadre.png" alt="Cadre" onError="this.style.display='none'" />
     
     <div id="countdown" class="countdown">3</div>
-    <div id="flash" class="flash"></div>
     
-    <div id="resultOverlay" class="result-overlay">
-      <div class="qr-title">Scanne ta photo</div>
+    <button class="btn-gallery-toggle" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
+
+    <div id="qrContainer">
       <div id="qrcode"></div>
+      <p>📱 Scanne pour télécharger</p>
     </div>
 
-    <div class="controls">
-      <button id="startBtn" class="btn" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
-      <button id="galleryBtn" class="btn btn-secondary" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
-    </div>
+    <div id="reloadNotice">Prêt pour la suivante dans <span id="timerSec">10</span>s...</div>
+
+    <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">PRENDRE UNE PHOTO</button>
   </div>
 
+  <!-- Galerie -->
   <div id="galleryModal" class="gallery-modal">
     <div class="gallery-header">
-      <div class="gallery-title">Photos de la soirée</div>
+      <h2>Galerie de la Soirée</h2>
       <div class="gallery-actions">
-        <button class="btn btn-secondary btn-danger" onclick="clearAllPhotos()">🗑️ Tout effacer</button>
-        <button class="btn btn-secondary" onclick="toggleGallery()">❌ Fermer</button>
+        <button class="btn-action btn-zip" onclick="downloadAllZip()">Tout télécharger (.zip)</button>
+        <button class="btn-action btn-close" onclick="toggleGallery()">Fermer ❌</button>
       </div>
     </div>
     <div id="galleryGrid" class="gallery-grid"></div>
@@ -316,35 +246,29 @@
     const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('canvas');
     const frame = document.getElementById('frame');
-    const resultOverlay = document.getElementById('resultOverlay');
+    const qrContainer = document.getElementById('qrContainer');
     const qrcodeEl = document.getElementById('qrcode');
-    const flashEl = document.getElementById('flash');
     const galleryModal = document.getElementById('galleryModal');
     const galleryGrid = document.getElementById('galleryGrid');
     const photoCountEl = document.getElementById('photoCount');
+    const reloadNotice = document.getElementById('reloadNotice');
+    const timerSec = document.getElementById('timerSec');
 
     let db;
+    const request = indexedDB.open("PhotoboothDB", 1);
 
-    // Initialisation IndexedDB pour stockage persistant illimité
-    function initDB() {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open("PhotoboothDB", 1);
-        request.onupgradeneeded = (e) => {
-          db = e.target.result;
-          if (!db.objectStoreNames.contains("photos")) {
-            db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
-          }
-        };
-        request.onsuccess = (e) => {
-          db = e.target.result;
-          loadPhotosFromDB();
-          resolve();
-        };
-        request.onerror = (e) => reject(e);
-      });
-    }
+    request.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("photos")) {
+        db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
+      }
+    };
 
-    // Caméra
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      updateGalleryUI();
+    };
+
     async function initCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -356,11 +280,11 @@
       }
     }
 
-    // Déclencher la photo
     function startPhotobooth() {
       startBtn.style.display = 'none';
       photoResult.style.display = 'none';
-      resultOverlay.style.display = 'none';
+      qrContainer.style.display = 'none';
+      reloadNotice.style.display = 'none';
       video.style.display = 'block';
       
       let count = 3;
@@ -374,18 +298,11 @@
         } else {
           clearInterval(timer);
           countdownEl.style.display = 'none';
-          triggerFlash();
           takePhoto();
         }
       }, 1000);
     }
 
-    function triggerFlash() {
-      flashEl.classList.add('flash-active');
-      setTimeout(() => flashEl.classList.remove('flash-active'), 400);
-    }
-
-    // Prise de vue
     function takePhoto() {
       const context = canvas.getContext('2d');
       const w = video.videoWidth || 1920;
@@ -393,14 +310,9 @@
       canvas.width = w;
       canvas.height = h;
 
-      // Effet miroir webcam
-      context.save();
-      context.scale(-1, 1);
-      context.drawImage(video, -w, 0, w, h);
-      context.restore();
+      context.drawImage(video, 0, 0, w, h);
 
-      // Application du cadre PNG
-      if (frame.complete && frame.naturalWidth !== 0) {
+      if (frame.complete && frame.naturalWidth !== 0 && frame.style.display !== 'none') {
         context.drawImage(frame, 0, 0, w, h);
       }
 
@@ -408,89 +320,99 @@
       photoResult.src = imageData;
 
       // Sauvegarde dans la base IndexedDB
-      savePhotoToDB(imageData);
+      const transaction = db.transaction(["photos"], "readwrite");
+      const store = transaction.objectStore("photos");
+      store.add({ image: imageData, timestamp: Date.now() });
+
+      transaction.oncomplete = () => {
+        updateGalleryUI();
+      };
 
       // QR Code
       qrcodeEl.innerHTML = "";
-      new QRCode(qrcodeEl, { text: imageData, width: 120, height: 120 });
+      new QRCode(qrcodeEl, { text: imageData, width: 130, height: 130 });
 
       video.style.display = 'none';
       photoResult.style.display = 'block';
-      resultOverlay.style.display = 'flex';
+      qrContainer.style.display = 'flex';
+      reloadNotice.style.display = 'block';
+
+      // Décompte de 10 secondes avant rafraîchissement
+      let timeLeft = 10;
+      timerSec.innerText = timeLeft;
       
-      setTimeout(() => {
-        startBtn.innerText = "📸 PRENDRE UNE AUTRE PHOTO";
-        startBtn.style.display = 'flex';
-      }, 6000);
+      const reloadInterval = setInterval(() => {
+        timeLeft--;
+        timerSec.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(reloadInterval);
+          window.location.reload();
+        }
+      }, 1000);
     }
 
-    // Sauvegarde IndexedDB
-    function savePhotoToDB(dataUrl) {
-      const tx = db.transaction("photos", "readwrite");
-      const store = tx.objectStore("photos");
-      store.add({ data: dataUrl, timestamp: new Date().getTime() });
-      tx.oncomplete = () => loadPhotosFromDB();
-    }
+    function updateGalleryUI() {
+      if (!db) return;
+      const transaction = db.transaction(["photos"], "readonly");
+      const store = transaction.objectStore("photos");
+      const getAllRequest = store.getAll();
 
-    // Charger photos depuis IndexedDB
-    function loadPhotosFromDB() {
-      const tx = db.transaction("photos", "readonly");
-      const store = tx.objectStore("photos");
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const photos = request.result.reverse();
+      getAllRequest.onsuccess = () => {
+        const photos = getAllRequest.result.reverse();
         photoCountEl.innerText = photos.length;
         galleryGrid.innerHTML = "";
 
-        if (photos.length === 0) {
-          galleryGrid.innerHTML = '<div class="empty-msg">Aucune photo enregistrée pour le moment.</div>';
-          return;
-        }
-
-        photos.forEach(item => {
-          const card = document.createElement('div');
-          card.className = 'gallery-card';
-          card.innerHTML = `
-            <img src="${item.data}" alt="Photo" />
-            <div class="gallery-card-actions">
-              <a href="${item.data}" download="photo_${item.id}.jpg" class="icon-btn">💾 Enregistrer</a>
-              <button onclick="deletePhoto(${item.id})" class="icon-btn" style="background:rgba(255,0,0,0.5)">🗑️</button>
-            </div>
+        photos.forEach((item, index) => {
+          const gridItem = document.createElement('div');
+          gridItem.className = 'gallery-item';
+          gridItem.innerHTML = `
+            <img src="${item.image}" alt="Photo ${index + 1}" />
+            <a href="${item.image}" download="photo_dj_ice_${item.timestamp}.jpg">Télécharger</a>
           `;
-          galleryGrid.appendChild(card);
+          galleryGrid.appendChild(gridItem);
         });
       };
     }
 
-    // Supprimer une photo
-    window.deletePhoto = function(id) {
-      const tx = db.transaction("photos", "readwrite");
-      tx.objectStore("photos").delete(id);
-      tx.oncomplete = () => loadPhotosFromDB();
-    };
-
-    // Vider toutes les photos
-    window.clearAllPhotos = function() {
-      if (confirm("Voulez-vous vraiment effacer toutes les photos de la galerie ?")) {
-        const tx = db.transaction("photos", "readwrite");
-        tx.objectStore("photos").clear();
-        tx.oncomplete = () => loadPhotosFromDB();
-      }
-    };
-
     function toggleGallery() {
-      const isVisible = galleryModal.style.display === 'flex';
-      galleryModal.style.display = isVisible ? 'none' : 'flex';
+      galleryModal.style.display = (galleryModal.style.display === 'flex') ? 'none' : 'flex';
     }
 
+    function downloadAllZip() {
+      const transaction = db.transaction(["photos"], "readonly");
+      const store = transaction.objectStore("photos");
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = () => {
+        const photos = getAllRequest.result;
+        if (photos.length === 0) {
+          alert("Aucune photo dans la galerie.");
+          return;
+        }
+
+        const zip = new JSZip();
+        photos.forEach((item, index) => {
+          const base64Data = item.image.replace(/^data:image\/jpeg;base64,/, "");
+          zip.file(`photo_dj_ice_${index + 1}.jpg`, base64Data, { base64: true });
+        });
+
+        zip.generateAsync({ type: "blob" }).then((content) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(content);
+          a.download = "photobooth_dj_ice_soiree.zip";
+          a.click();
+        });
+      };
+    }
+
+    // Raccourci Clavier Touche Espace
     document.addEventListener('keydown', (e) => {
-      if ((e.code === 'Space' || e.code === 'Enter') && startBtn.style.display !== 'none' && galleryModal.style.display !== 'flex') {
+      if (e.code === 'Space' && startBtn.style.display !== 'none') {
         startPhotobooth();
       }
     });
 
-    initDB().then(() => initCamera());
+    initCamera();
   </script>
 </body>
 </html>
