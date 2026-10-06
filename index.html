@@ -307,7 +307,7 @@
 
     <label class="upload-box">
       <h3>➕ Importer un nouveau cadre (.PNG transparent)</h3>
-      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Redimensionné et optimisé automatiquement pour Firestore</p>
+      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Optimisé automatiquement pour Firestore</p>
       <input type="file" id="frameInput" accept="image/png" onchange="handleFrameUpload(event)">
     </label>
 
@@ -339,14 +339,14 @@
       getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ⚠️ Remplacez ces informations par votre propre configuration Firebase Console
+    // Tes identifiants Firebase du projet photobooth-dj-ice
     const firebaseConfig = {
-      apiKey: "VOTRE_API_KEY",
-      authDomain: "VOTRE_PROJECT_ID.firebaseapp.com",
-      projectId: "VOTRE_PROJECT_ID",
-      storageBucket: "VOTRE_PROJECT_ID.appspot.com",
-      messagingSenderId: "VOTRE_SENDER_ID",
-      appId: "VOTRE_APP_ID"
+      apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
+      authDomain: "photobooth-dj-ice.firebaseapp.com",
+      projectId: "photobooth-dj-ice",
+      storageBucket: "photobooth-dj-ice.firebasestorage.app",
+      messagingSenderId: "317176553708",
+      appId: "1:317176553708:web:09c5177d85c61ffc36c5c9"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -378,7 +378,7 @@
         });
         video.srcObject = stream;
       } catch (err) {
-        alert("Erreur d'accès à la caméra : " + err);
+        console.warn("Mode affichage seul / Caméra non disponible : " + err);
       }
     }
 
@@ -443,8 +443,8 @@
           frameUsed: selectedFrameData ? selectedFrameData.name : 'aucun'
         });
       } catch (e) {
-        console.error("Erreur d'enregistrement de la photo:", e);
-        alert("Erreur lors de l'enregistrement dans Firestore : " + e.message);
+        console.error("Erreur d'enregistrement dans Firestore:", e);
+        alert("Erreur réseau ou autorisation Firestore : " + e.message);
       }
 
       let timeLeft = 15;
@@ -472,7 +472,7 @@
         const img = new Image();
         img.onload = async function() {
           const tempCanvas = document.createElement('canvas');
-          const maxDim = 1280; // Redimensionne les grands PNG pour ne pas dépasser 1 Mo
+          const maxDim = 1280;
           let width = img.width;
           let height = img.height;
 
@@ -501,7 +501,7 @@
               image: compressedBase64,
               timestamp: Date.now()
             });
-            alert("Cadre importé et sauvegardé avec succès !");
+            alert("Cadre importé et sauvegardé dans Firebase !");
           } catch (err) {
             console.error("Erreur Firestore Cadre:", err);
             alert("Erreur de sauvegarde : " + err.message);
