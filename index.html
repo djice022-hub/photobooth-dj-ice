@@ -3,95 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Photobooth DJ ICE</title>
+  <title>Photobooth - DJ ICE</title>
+  <!-- JSZip pour le téléchargement de la galerie -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
-      authDomain: "photobooth-dj-ice.firebaseapp.com",
-      projectId: "photobooth-dj-ice",
-      storageBucket: "photobooth-dj-ice.firebasestorage.app",
-      messagingSenderId: "317176553708",
-      appId: "1:317176553708:web:09c5177d85c61ffc36c5c9"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    window.db = db;
-    window.firestoreTools = { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc };
-  </script>
-
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #000; color: white; font-family: 'Segoe UI', Roboto, sans-serif; height: 100vh; overflow: hidden; user-select: none; }
-    .container { position: relative; width: 100vw; height: 100vh; }
-    video, #photoResult { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-    .overlay-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; object-fit: fill; z-index: 10; }
+    body {
+      background-color: #000;
+      color: white;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      user-select: none;
+    }
+    
+    .container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      overflow: hidden;
+    }
+    
+    video, #photoResult {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    .overlay-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      object-fit: fill; 
+      z-index: 10;
+    }
+    
     #photoResult { display: none; z-index: 5; }
     video { z-index: 1; }
+    
     .countdown {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-size: 14rem; font-weight: 900; color: #fff; text-shadow: 0 0 40px rgba(0,0,0,0.9); display: none; z-index: 20;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 40px rgba(0,0,0,0.9);
+      display: none;
+      z-index: 20;
     }
+
     .btn-shoot {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      padding: 22px 60px; font-size: 2rem; background: linear-gradient(135deg, #ff0055, #ff5500);
-      color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; z-index: 30;
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 22px 60px;
+      font-size: 2rem;
+      background: linear-gradient(135deg, #ff0055, #ff5500);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 30;
       box-shadow: 0 6px 30px rgba(255, 0, 85, 0.6);
     }
-    .top-bar { position: absolute; top: 20px; right: 20px; display: flex; gap: 12px; z-index: 35; }
+    .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
+
+    .top-bar {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 15px;
+      z-index: 35;
+    }
+
     .btn-top {
-      padding: 12px 20px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px);
-      color: white; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1rem;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
     }
+
     #djNotice {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.85); border: 2px solid #ff0055; padding: 20px 40px; border-radius: 40px;
-      font-size: 1.8rem; font-weight: bold; color: #fff; text-align: center; display: none; z-index: 40;
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #ff0055;
+      padding: 20px 40px;
+      border-radius: 40px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #fff;
+      text-align: center;
+      display: none;
+      z-index: 40;
+      box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+      white-space: nowrap;
     }
+
     #reloadNotice {
-      position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.75);
-      padding: 12px 25px; border-radius: 20px; font-weight: bold; font-size: 1.2rem; display: none; z-index: 40;
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      background: rgba(0,0,0,0.75);
+      padding: 12px 25px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      display: none;
+      z-index: 40;
+      border: 1px solid rgba(255,255,255,0.3);
     }
+
     .modal {
-      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.95); z-index: 100; display: none; flex-direction: column; padding: 30px; overflow-y: auto;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      padding: 30px;
+      overflow-y: auto;
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-    .btn-action { padding: 10px 20px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 15px;
+    }
+
+    .btn-action {
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-zip { background: #00cc66; color: white; }
     .btn-close { background: #ff3333; color: white; }
-    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
-    .gallery-item { position: relative; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; border: 2px solid #333; }
-    .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .gallery-item {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid #333;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     .gallery-item-actions {
-      position: absolute; bottom: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 5px;
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 5px;
     }
+
     .gallery-item-actions a, .btn-delete {
-      background: rgba(0,0,0,0.8); color: white; padding: 6px 12px; border-radius: 15px; text-decoration: none; font-size: 0.85rem; border: none; cursor: pointer;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 15px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
     }
+
     .btn-delete { background: rgba(255, 0, 0, 0.8); }
-    /* Badge masque */
-    .status-badge { display: none; }
+
+    .frame-card {
+      background: #111;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .frame-card.active {
+      border-color: #ff0055;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+    }
+
+    .frame-preview {
+      width: 100%;
+      height: 120px;
+      border-radius: 8px;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .frame-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .upload-box {
+      border: 2px dashed #ff0055;
+      background: rgba(255, 0, 85, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 25px;
+      cursor: pointer;
+    }
+
+    .upload-box input { display: none; }
+
+    .btn-delete-frame-card {
+      margin-top: 10px;
+      width: 100%;
+      background: rgba(255, 0, 0, 0.8);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-
-  <div class="status-badge" id="syncStatus">⚡ Direct Cloud Active</div>
 
   <div class="container">
     <video id="webcam" autoplay playsinline></video>
     <img id="photoResult" alt="Photo prise" />
     <img id="frame" class="overlay-frame" src="" alt="Cadre" onError="this.style.display='none'" />
+    
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
-      <label class="btn-top">🖼️ Cadre <input type="file" id="frameInput" accept="image/png" style="display:none" onchange="uploadFrame(event)"></label>
-      <button class="btn-top" onclick="toggleGallery()">📸 Galerie (<span id="photoCount">0</span>)</button>
+      <button class="btn-top" onclick="toggleFrameModal()">🖼 Cadres</button>
+      <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
+      <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
     </div>
 
     <div id="djNotice">📱 Venez chercher votre photo auprès du DJ</div>
@@ -99,10 +298,33 @@
     <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
   </div>
 
+  <!-- Modal Cadres -->
+  <div id="frameModal" class="modal">
+    <div class="modal-header">
+      <h2>Choisir ou Ajouter un Cadre</h2>
+      <button class="btn-action btn-close" onclick="toggleFrameModal()">Fermer ❌</button>
+    </div>
+
+    <label class="upload-box">
+      <h3>➕ Importer un nouveau cadre (.PNG transparent)</h3>
+      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Redimensionné et optimisé automatiquement pour Firestore</p>
+      <input type="file" id="frameInput" accept="image/png" onchange="handleFrameUpload(event)">
+    </label>
+
+    <div id="frameGrid" class="grid-container">
+      <div class="frame-card active" id="card-none" onclick="selectFrame(null, 'card-none')">
+        <div class="frame-preview" style="color: #666; font-weight: bold;">SANS CADRE</div>
+        <span>Aucun cadre</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Galerie -->
   <div id="galleryModal" class="modal">
     <div class="modal-header">
-      <h2>Galerie en Direct - DJ ICE</h2>
-      <div>
+      <h2>Galerie - DJ ICE</h2>
+      <div class="modal-actions">
+        <button class="btn-action btn-zip" onclick="downloadAllZip()">Tout télécharger (.zip)</button>
         <button class="btn-action btn-close" onclick="toggleGallery()">Fermer ❌</button>
       </div>
     </div>
@@ -111,68 +333,101 @@
 
   <canvas id="canvas" style="display:none;"></canvas>
 
-  <script>
-    let localPhotos = [];
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ⚠️ Remplacez ces informations par votre propre configuration Firebase Console
+    const firebaseConfig = {
+      apiKey: "VOTRE_API_KEY",
+      authDomain: "VOTRE_PROJECT_ID.firebaseapp.com",
+      projectId: "VOTRE_PROJECT_ID",
+      storageBucket: "VOTRE_PROJECT_ID.appspot.com",
+      messagingSenderId: "VOTRE_SENDER_ID",
+      appId: "VOTRE_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     const video = document.getElementById('webcam');
     const photoResult = document.getElementById('photoResult');
     const countdownEl = document.getElementById('countdown');
     const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('canvas');
+    const frame = document.getElementById('frame');
     const djNotice = document.getElementById('djNotice');
     const galleryModal = document.getElementById('galleryModal');
+    const frameModal = document.getElementById('frameModal');
     const galleryGrid = document.getElementById('galleryGrid');
+    const frameGrid = document.getElementById('frameGrid');
     const photoCountEl = document.getElementById('photoCount');
     const reloadNotice = document.getElementById('reloadNotice');
-    const frameImg = document.getElementById('frame');
+    const timerSec = document.getElementById('timerSec');
 
-    const checkFirebase = setInterval(() => {
-      if (window.db && window.firestoreTools) {
-        clearInterval(checkFirebase);
-        initFirebaseSync();
-      }
-    }, 200);
-
-    function initFirebaseSync() {
-      const { collection, onSnapshot, query, orderBy } = window.firestoreTools;
-      const q = query(collection(window.db, "photos"), orderBy("timestamp", "desc"));
-
-      onSnapshot(q, (snapshot) => {
-        localPhotos = [];
-        snapshot.forEach((doc) => {
-          localPhotos.push({ id: doc.id, ...doc.data() });
-        });
-        renderGallery();
-      });
-    }
+    let reloadTimer = null;
+    let selectedFrameData = null;
+    let currentPhotosList = [];
 
     async function initCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1200 } } });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1200 } } 
+        });
         video.srcObject = stream;
       } catch (err) {
-        console.warn("Caméra non disponible sur cet appareil (mode réception seul)");
+        alert("Erreur d'accès à la caméra : " + err);
       }
     }
 
-    function takePhoto() {
+    window.resetToCamera = function() {
+      if (reloadTimer) clearInterval(reloadTimer);
+      photoResult.style.display = 'none';
+      djNotice.style.display = 'none';
+      reloadNotice.style.display = 'none';
+      video.style.display = 'block';
+      startBtn.style.display = 'block';
+    };
+
+    window.startPhotobooth = function() {
+      startBtn.style.display = 'none';
+      photoResult.style.display = 'none';
+      djNotice.style.display = 'none';
+      reloadNotice.style.display = 'none';
+      video.style.display = 'block';
+      
+      let count = 3;
+      countdownEl.innerText = count;
+      countdownEl.style.display = 'block';
+
+      const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownEl.innerText = count;
+        } else {
+          clearInterval(timer);
+          countdownEl.style.display = 'none';
+          takePhoto();
+        }
+      }, 1000);
+    };
+
+    async function takePhoto() {
       const context = canvas.getContext('2d');
       const w = video.videoWidth || 1920;
       const h = video.videoHeight || 1200;
-      canvas.width = w; canvas.height = h;
-      
+      canvas.width = w;
+      canvas.height = h;
+
       context.drawImage(video, 0, 0, w, h);
 
-      if (frameImg.src && frameImg.style.display !== 'none') {
-        context.drawImage(frameImg, 0, 0, w, h);
+      if (frame.src && frame.style.display !== 'none' && frame.complete && frame.naturalWidth !== 0) {
+        context.drawImage(frame, 0, 0, w, h);
       }
 
-      const imageData = canvas.toDataURL('image/jpeg', 0.80);
-
-      const { collection, addDoc } = window.firestoreTools;
-      addDoc(collection(window.db, "photos"), {
-        image: imageData,
-        timestamp: Date.now()
-      });
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
 
       photoResult.src = imageData;
       video.style.display = 'none';
@@ -180,72 +435,215 @@
       djNotice.style.display = 'block';
       reloadNotice.style.display = 'block';
 
-      setTimeout(() => resetToCamera(), 15000);
+      try {
+        const timestamp = Date.now();
+        await addDoc(collection(db, "photos"), {
+          image: imageData,
+          timestamp: timestamp,
+          frameUsed: selectedFrameData ? selectedFrameData.name : 'aucun'
+        });
+      } catch (e) {
+        console.error("Erreur d'enregistrement de la photo:", e);
+        alert("Erreur lors de l'enregistrement dans Firestore : " + e.message);
+      }
+
+      let timeLeft = 15;
+      timerSec.innerText = timeLeft;
+      
+      if (reloadTimer) clearInterval(reloadTimer);
+      
+      reloadTimer = setInterval(() => {
+        timeLeft--;
+        timerSec.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(reloadTimer);
+          resetToCamera();
+        }
+      }, 1000);
     }
 
-    function renderGallery() {
-      photoCountEl.innerText = localPhotos.length;
+    // REDIMENSIONNEMENT & IMPORTATION DU CADRE DANS FIRESTORE
+    window.handleFrameUpload = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = async function() {
+          const tempCanvas = document.createElement('canvas');
+          const maxDim = 1280; // Redimensionne les grands PNG pour ne pas dépasser 1 Mo
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          tempCanvas.width = width;
+          tempCanvas.height = height;
+
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = tempCanvas.toDataURL('image/png');
+          const name = file.name.replace('.png', '');
+
+          try {
+            await addDoc(collection(db, "frames"), {
+              name: name,
+              image: compressedBase64,
+              timestamp: Date.now()
+            });
+            alert("Cadre importé et sauvegardé avec succès !");
+          } catch (err) {
+            console.error("Erreur Firestore Cadre:", err);
+            alert("Erreur de sauvegarde : " + err.message);
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // ÉCOUTE FIRESTORE DES CADRES EN TEMPS RÉEL
+    const framesQuery = query(collection(db, "frames"), orderBy("timestamp", "desc"));
+    onSnapshot(framesQuery, (snapshot) => {
+      frameGrid.innerHTML = `
+        <div class="frame-card ${!selectedFrameData ? 'active' : ''}" id="card-none" onclick="selectFrame(null, 'card-none')">
+          <div class="frame-preview" style="color: #666; font-weight: bold;">SANS CADRE</div>
+          <span>Aucun cadre</span>
+        </div>
+      `;
+
+      snapshot.forEach((docSnap) => {
+        const item = { id: docSnap.id, ...docSnap.data() };
+        const cardId = `card-frame-${item.id}`;
+        const isSelected = selectedFrameData && selectedFrameData.id === item.id;
+
+        const card = document.createElement('div');
+        card.className = `frame-card ${isSelected ? 'active' : ''}`;
+        card.id = cardId;
+        card.onclick = () => selectFrame(item, cardId);
+
+        card.innerHTML = `
+          <div class="frame-preview">
+            <img src="${item.image}" alt="${item.name}" />
+          </div>
+          <span>${item.name}</span>
+          <button class="btn-delete-frame-card" onclick="deleteFrame(event, '${item.id}')">🗑 Supprimer</button>
+        `;
+
+        frameGrid.appendChild(card);
+      });
+    }, (error) => {
+      console.error("Erreur chargement cadres:", error);
+    });
+
+    window.selectFrame = function(frameObj, cardId) {
+      document.querySelectorAll('.frame-card').forEach(c => c.classList.remove('active'));
+      const cardEl = document.getElementById(cardId);
+      if (cardEl) cardEl.classList.add('active');
+
+      if (!frameObj) {
+        selectedFrameData = null;
+        frame.src = "";
+        frame.style.display = 'none';
+      } else {
+        selectedFrameData = frameObj;
+        frame.src = frameObj.image;
+        frame.style.display = 'block';
+      }
+    };
+
+    window.deleteFrame = async function(e, id) {
+      e.stopPropagation();
+      if (confirm("Voulez-vous vraiment supprimer ce cadre ?")) {
+        try {
+          await deleteDoc(doc(db, "frames", id));
+          if (selectedFrameData && selectedFrameData.id === id) {
+            selectFrame(null, 'card-none');
+          }
+        } catch (e) {
+          console.error("Erreur de suppression du cadre:", e);
+        }
+      }
+    };
+
+    // ÉCOUTE FIRESTORE DES PHOTOS EN TEMPS RÉEL
+    const photosQuery = query(collection(db, "photos"), orderBy("timestamp", "desc"));
+    onSnapshot(photosQuery, (snapshot) => {
+      currentPhotosList = [];
       galleryGrid.innerHTML = "";
-      localPhotos.forEach((item) => {
+      photoCountEl.innerText = snapshot.size;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        currentPhotosList.push({ id, ...data });
+
         const gridItem = document.createElement('div');
         gridItem.className = 'gallery-item';
         gridItem.innerHTML = `
-          <img src="${item.image}" alt="Photo" />
+          <img src="${data.image}" alt="Photo ${data.timestamp}" />
           <div class="gallery-item-actions">
-            <a href="${item.image}" download="photo_dj_ice_${item.timestamp}.jpg">💾 Enregistrer</a>
-            <button class="btn-delete" onclick="deletePhoto('${item.id}')">🗑️️ Supprimer</button>
+            <a href="${data.image}" download="photo_dj_ice_${data.timestamp}.jpg">💾 Télécharger</a>
+            <button class="btn-delete" onclick="deletePhoto('${id}')">🗑️ Supprimer</button>
           </div>
         `;
         galleryGrid.appendChild(gridItem);
       });
-    }
+    });
 
-    function deletePhoto(docId) {
-      if (confirm("Supprimer la photo ?")) {
-        const { doc, deleteDoc } = window.firestoreTools;
-        deleteDoc(doc(window.db, "photos", docId));
-      }
-    }
-
-    function uploadFrame(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          frameImg.src = e.target.result;
-          frameImg.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    function toggleGallery() {
-      galleryModal.style.display = (galleryModal.style.display === 'flex') ? 'none' : 'flex';
-    }
-
-    function resetToCamera() {
-      photoResult.style.display = 'none';
-      djNotice.style.display = 'none';
-      reloadNotice.style.display = 'none';
-      video.style.display = 'block';
-      startBtn.style.display = 'block';
-    }
-
-    function startPhotobooth() {
-      startBtn.style.display = 'none';
-      let count = 3;
-      countdownEl.innerText = count;
-      countdownEl.style.display = 'block';
-      const timer = setInterval(() => {
-        count--;
-        if (count > 0) countdownEl.innerText = count;
-        else {
-          clearInterval(timer);
-          countdownEl.style.display = 'none';
-          takePhoto();
+    window.deletePhoto = async function(id) {
+      if (confirm("Voulez-vous vraiment supprimer cette photo ?")) {
+        try {
+          await deleteDoc(doc(db, "photos", id));
+        } catch (e) {
+          console.error("Erreur de suppression:", e);
         }
-      }, 1000);
-    }
+      }
+    };
+
+    window.toggleFrameModal = function() {
+      frameModal.style.display = (frameModal.style.display === 'flex') ? 'none' : 'flex';
+    };
+
+    window.toggleGallery = function() {
+      galleryModal.style.display = (galleryModal.style.display === 'flex') ? 'none' : 'flex';
+    };
+
+    window.downloadAllZip = function() {
+      if (currentPhotosList.length === 0) {
+        alert("Aucune photo dans la galerie.");
+        return;
+      }
+
+      const zip = new JSZip();
+      currentPhotosList.forEach((item, index) => {
+        const base64Data = item.image.replace(/^data:image\/jpeg;base64,/, "");
+        zip.file(`photo_dj_ice_${index + 1}.jpg`, base64Data, { base64: true });
+      });
+
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = "photobooth_dj_ice_soiree.zip";
+        a.click();
+      });
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && startBtn.style.display !== 'none') {
+        startPhotobooth();
+      }
+    });
 
     initCamera();
   </script>
