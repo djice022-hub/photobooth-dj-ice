@@ -5,18 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Photobooth - DJ ICE</title>
   
-  <!-- Configuration Web App (PWA) Plein Écran -->
+  <!-- Configuration Web App (PWA) Plein Écran pour Tablette -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DJ ICE Photo">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#000000">
   
-  <!-- Icône de l'application -->
   <link rel="apple-touch-icon" href="logo.png">
   <link rel="icon" type="image/png" href="logo.png">
 
-  <!-- JSZip pour le téléchargement de la galerie -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <style>
@@ -29,6 +27,7 @@
       width: 100vw;
       overflow: hidden;
       user-select: none;
+      -webkit-user-select: none;
     }
     
     .container {
@@ -93,12 +92,31 @@
     }
     .btn-shoot:active { transform: translateX(-50%) scale(0.95); }
 
+    .btn-cam-enable {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 25px 45px;
+      font-size: 1.8rem;
+      background: #ff0055;
+      color: white;
+      border: 3px solid white;
+      border-radius: 40px;
+      cursor: pointer;
+      font-weight: bold;
+      z-index: 50;
+      display: none;
+      box-shadow: 0 0 40px rgba(255,0,85,0.9);
+      text-align: center;
+    }
+
     .top-bar {
       position: absolute;
       top: 20px;
       right: 20px;
       display: flex;
-      gap: 15px;
+      gap: 12px;
       z-index: 35;
     }
 
@@ -295,13 +313,14 @@
   <div class="container">
     <video id="webcam" autoplay playsinline muted></video>
     <img id="photoResult" alt="Photo prise" />
-    
-    <!-- Image du cadre par-dessus -->
     <img id="frame" class="overlay-frame" src="" alt="Cadre" onError="this.style.display='none'" />
     
+    <button id="enableCamBtn" class="btn-cam-enable" onclick="initCamera()">🎥 TOUCHER POUR ACTIVER LA CAMÉRA</button>
+
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
+      <button class="btn-top" onclick="initCamera()">📷 Caméra</button>
       <button class="btn-top" onclick="toggleFrameModal()">🖼 Cadres</button>
       <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
       <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
@@ -353,7 +372,6 @@
       getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Configuration Firebase photobooth-dj-ice
     const firebaseConfig = {
       apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
       authDomain: "photobooth-dj-ice.firebaseapp.com",
@@ -370,6 +388,7 @@
     const photoResult = document.getElementById('photoResult');
     const countdownEl = document.getElementById('countdown');
     const startBtn = document.getElementById('startBtn');
+    const enableCamBtn = document.getElementById('enableCamBtn');
     const canvas = document.getElementById('canvas');
     const frame = document.getElementById('frame');
     const djNotice = document.getElementById('djNotice');
@@ -385,30 +404,34 @@
     let selectedFrameData = null;
     let currentPhotosList = [];
 
-    async function initCamera() {
-      try {
-        // tentative HD
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-      } catch (err) {
-        console.warn("Échec caméra HD, tentative en résolution standard...", err);
+    window.initCamera = async function() {
+      enableCamBtn.style.display = 'none';
+      
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+
+      // Contraintes très souples pour compatibilité maximale sur tablette
+      const constraintsList = [
+        { video: { facingMode: { ideal: "user" } }, audio: false },
+        { video: { facingMode: "environment" }, audio: false },
+        { video: true, audio: false }
+      ];
+
+      for (let constraints of constraintsList) {
         try {
-          // secours basique
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: false 
-          });
-          video.srcObject = fallbackStream;
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = stream;
           await video.play();
+          return; // Succès !
         } catch (e) {
-          alert("Impossible d'accéder à la caméra. Vérifiez les autorisations du navigateur.");
+          console.warn("Échec configuration caméra :", e);
         }
       }
-    }
+
+      // Si toutes les tentatives automatiques échouent
+      enableCamBtn.style.display = 'block';
+    };
 
     window.resetToCamera = function() {
       if (reloadTimer) clearInterval(reloadTimer);
@@ -417,14 +440,17 @@
       reloadNotice.style.display = 'none';
       video.style.display = 'block';
       startBtn.style.display = 'block';
-      if (!video.srcObject) {
+      
+      if (!video.srcObject || video.paused) {
         initCamera();
-      } else {
-        video.play();
       }
     };
 
     window.startPhotobooth = function() {
+      if (!video.srcObject) {
+        initCamera();
+        return;
+      }
       startBtn.style.display = 'none';
       photoResult.style.display = 'none';
       djNotice.style.display = 'none';
@@ -477,7 +503,6 @@
         });
       } catch (e) {
         console.error("Erreur d'enregistrement dans Firestore:", e);
-        alert("Erreur lors de l'enregistrement dans Firestore : " + e.message);
       }
 
       let timeLeft = 15;
@@ -495,7 +520,6 @@
       }, 1000);
     }
 
-    // REDIMENSIONNEMENT & IMPORTATION DU CADRE DANS FIRESTORE
     window.handleFrameUpload = function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -545,7 +569,6 @@
       reader.readAsDataURL(file);
     };
 
-    // ÉCOUTE FIRESTORE DES CADRES EN TEMPS RÉEL (SYNCHRONISATION PC ➔ TABLETTE)
     const framesQuery = query(collection(db, "frames"), orderBy("timestamp", "desc"));
     onSnapshot(framesQuery, (snapshot) => {
       frameGrid.innerHTML = `
@@ -627,7 +650,6 @@
       }
     };
 
-    // ÉCOUTE FIRESTORE DES PHOTOS EN TEMPS RÉEL
     const photosQuery = query(collection(db, "photos"), orderBy("timestamp", "desc"));
     onSnapshot(photosQuery, (snapshot) => {
       currentPhotosList = [];
@@ -696,7 +718,7 @@
       }
     });
 
-    // Démarrage de la caméra au chargement
+    // Tentative de lancement
     initCamera();
   </script>
 </body>
