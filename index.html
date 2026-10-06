@@ -293,7 +293,7 @@
 <body>
 
   <div class="container">
-    <video id="webcam" autoplay playsinline></video>
+    <video id="webcam" autoplay playsinline muted></video>
     <img id="photoResult" alt="Photo prise" />
     
     <!-- Image du cadre par-dessus -->
@@ -387,12 +387,26 @@
 
     async function initCamera() {
       try {
+        // tentative HD
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1200 } } 
+          video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
         });
         video.srcObject = stream;
+        await video.play();
       } catch (err) {
-        console.warn("Mode affichage seul / Caméra non disponible : " + err);
+        console.warn("Échec caméra HD, tentative en résolution standard...", err);
+        try {
+          // secours basique
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: false 
+          });
+          video.srcObject = fallbackStream;
+          await video.play();
+        } catch (e) {
+          alert("Impossible d'accéder à la caméra. Vérifiez les autorisations du navigateur.");
+        }
       }
     }
 
@@ -403,6 +417,11 @@
       reloadNotice.style.display = 'none';
       video.style.display = 'block';
       startBtn.style.display = 'block';
+      if (!video.srcObject) {
+        initCamera();
+      } else {
+        video.play();
+      }
     };
 
     window.startPhotobooth = function() {
@@ -430,8 +449,8 @@
 
     async function takePhoto() {
       const context = canvas.getContext('2d');
-      const w = video.videoWidth || 1920;
-      const h = video.videoHeight || 1200;
+      const w = video.videoWidth || 1280;
+      const h = video.videoHeight || 720;
       canvas.width = w;
       canvas.height = h;
 
@@ -492,4 +511,193 @@
 
           if (width > maxDim || height > maxDim) {
             if (width > height) {
-              height = Math.round
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          tempCanvas.width = width;
+          tempCanvas.height = height;
+
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = tempCanvas.toDataURL('image/png');
+          const name = file.name.replace('.png', '');
+
+          try {
+            await addDoc(collection(db, "frames"), {
+              name: name,
+              image: compressedBase64,
+              timestamp: Date.now()
+            });
+            alert("Cadre importé et sauvegardé dans Firebase !");
+          } catch (err) {
+            console.error("Erreur Firestore Cadre:", err);
+            alert("Erreur de sauvegarde : " + err.message);
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // ÉCOUTE FIRESTORE DES CADRES EN TEMPS RÉEL (SYNCHRONISATION PC ➔ TABLETTE)
+    const framesQuery = query(collection(db, "frames"), orderBy("timestamp", "desc"));
+    onSnapshot(framesQuery, (snapshot) => {
+      frameGrid.innerHTML = `
+        <div class="frame-card ${!selectedFrameData ? 'active' : ''}" id="card-none" onclick="selectFrame(null, 'card-none')">
+          <div class="frame-preview" style="color: #666; font-weight: bold;">SANS CADRE</div>
+          <span>Aucun cadre</span>
+        </div>
+      `;
+
+      let hasActiveFrame = false;
+
+      snapshot.forEach((docSnap) => {
+        const item = { id: docSnap.id, ...docSnap.data() };
+        const cardId = `card-frame-${item.id}`;
+
+        if (!selectedFrameData && snapshot.docs[0].id === item.id) {
+          selectedFrameData = item;
+          frame.src = item.image;
+          frame.style.display = 'block';
+        }
+
+        const isSelected = selectedFrameData && selectedFrameData.id === item.id;
+        if (isSelected) {
+          hasActiveFrame = true;
+          frame.src = item.image;
+          frame.style.display = 'block';
+        }
+
+        const card = document.createElement('div');
+        card.className = `frame-card ${isSelected ? 'active' : ''}`;
+        card.id = cardId;
+        card.onclick = () => selectFrame(item, cardId);
+
+        card.innerHTML = `
+          <div class="frame-preview">
+            <img src="${item.image}" alt="${item.name}" />
+          </div>
+          <span>${item.name}</span>
+          <button class="btn-delete-frame-card" onclick="deleteFrame(event, '${item.id}')">🗑 Supprimer</button>
+        `;
+
+        frameGrid.appendChild(card);
+      });
+
+      if (selectedFrameData && !hasActiveFrame) {
+        selectFrame(null, 'card-none');
+      }
+    }, (error) => {
+      console.error("Erreur chargement cadres:", error);
+    });
+
+    window.selectFrame = function(frameObj, cardId) {
+      document.querySelectorAll('.frame-card').forEach(c => c.classList.remove('active'));
+      const cardEl = document.getElementById(cardId);
+      if (cardEl) cardEl.classList.add('active');
+
+      if (!frameObj) {
+        selectedFrameData = null;
+        frame.src = "";
+        frame.style.display = 'none';
+      } else {
+        selectedFrameData = frameObj;
+        frame.src = frameObj.image;
+        frame.style.display = 'block';
+      }
+    };
+
+    window.deleteFrame = async function(e, id) {
+      e.stopPropagation();
+      if (confirm("Voulez-vous vraiment supprimer ce cadre ?")) {
+        try {
+          await deleteDoc(doc(db, "frames", id));
+          if (selectedFrameData && selectedFrameData.id === id) {
+            selectFrame(null, 'card-none');
+          }
+        } catch (e) {
+          console.error("Erreur de suppression du cadre:", e);
+        }
+      }
+    };
+
+    // ÉCOUTE FIRESTORE DES PHOTOS EN TEMPS RÉEL
+    const photosQuery = query(collection(db, "photos"), orderBy("timestamp", "desc"));
+    onSnapshot(photosQuery, (snapshot) => {
+      currentPhotosList = [];
+      galleryGrid.innerHTML = "";
+      photoCountEl.innerText = snapshot.size;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        currentPhotosList.push({ id, ...data });
+
+        const gridItem = document.createElement('div');
+        gridItem.className = 'gallery-item';
+        gridItem.innerHTML = `
+          <img src="${data.image}" alt="Photo ${data.timestamp}" />
+          <div class="gallery-item-actions">
+            <a href="${data.image}" download="photo_dj_ice_${data.timestamp}.jpg">💾 Télécharger</a>
+            <button class="btn-delete" onclick="deletePhoto('${id}')">🗑️ Supprimer</button>
+          </div>
+        `;
+        galleryGrid.appendChild(gridItem);
+      });
+    });
+
+    window.deletePhoto = async function(id) {
+      if (confirm("Voulez-vous vraiment supprimer cette photo ?")) {
+        try {
+          await deleteDoc(doc(db, "photos", id));
+        } catch (e) {
+          console.error("Erreur de suppression:", e);
+        }
+      }
+    };
+
+    window.toggleFrameModal = function() {
+      frameModal.style.display = (frameModal.style.display === 'flex') ? 'none' : 'flex';
+    };
+
+    window.toggleGallery = function() {
+      galleryModal.style.display = (galleryModal.style.display === 'flex') ? 'none' : 'flex';
+    };
+
+    window.downloadAllZip = function() {
+      if (currentPhotosList.length === 0) {
+        alert("Aucune photo dans la galerie.");
+        return;
+      }
+
+      const zip = new JSZip();
+      currentPhotosList.forEach((item, index) => {
+        const base64Data = item.image.replace(/^data:image\/jpeg;base64,/, "");
+        zip.file(`photo_dj_ice_${index + 1}.jpg`, base64Data, { base64: true });
+      });
+
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = "photobooth_dj_ice_soiree.zip";
+        a.click();
+      });
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && startBtn.style.display !== 'none') {
+        startPhotobooth();
+      }
+    });
+
+    // Démarrage de la caméra au chargement
+    initCamera();
+  </script>
+</body>
+</html>
