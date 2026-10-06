@@ -307,7 +307,7 @@
 
     <label class="upload-box">
       <h3>➕ Importer un nouveau cadre (.PNG transparent)</h3>
-      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Optimisé automatiquement pour Firestore</p>
+      <p style="font-size: 0.9rem; color: #aaa; margin-top: 5px;">Optimisé et synchronisé automatiquement via Firebase</p>
       <input type="file" id="frameInput" accept="image/png" onchange="handleFrameUpload(event)">
     </label>
 
@@ -339,7 +339,7 @@
       getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Tes identifiants Firebase du projet photobooth-dj-ice
+    // Configuration Firebase pour photobooth-dj-ice
     const firebaseConfig = {
       apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
       authDomain: "photobooth-dj-ice.firebaseapp.com",
@@ -444,7 +444,7 @@
         });
       } catch (e) {
         console.error("Erreur d'enregistrement dans Firestore:", e);
-        alert("Erreur réseau ou autorisation Firestore : " + e.message);
+        alert("Erreur lors de l'enregistrement dans Firestore : " + e.message);
       }
 
       let timeLeft = 15;
@@ -512,7 +512,7 @@
       reader.readAsDataURL(file);
     };
 
-    // ÉCOUTE FIRESTORE DES CADRES EN TEMPS RÉEL
+    // ÉCOUTE FIRESTORE DES CADRES EN TEMPS RÉEL (SYNCHRONISATION PC ➔ TABLETTE)
     const framesQuery = query(collection(db, "frames"), orderBy("timestamp", "desc"));
     onSnapshot(framesQuery, (snapshot) => {
       frameGrid.innerHTML = `
@@ -522,10 +522,26 @@
         </div>
       `;
 
+      let hasActiveFrame = false;
+
       snapshot.forEach((docSnap) => {
         const item = { id: docSnap.id, ...docSnap.data() };
         const cardId = `card-frame-${item.id}`;
+
+        // Sélection automatique du cadre le plus récent s'il n'y en a pas encore
+        if (!selectedFrameData && snapshot.docs[0].id === item.id) {
+          selectedFrameData = item;
+          frame.src = item.image;
+          frame.style.display = 'block';
+        }
+
         const isSelected = selectedFrameData && selectedFrameData.id === item.id;
+        if (isSelected) {
+          hasActiveFrame = true;
+          // Met à jour l'image du cadre si elle a changé à distance
+          frame.src = item.image;
+          frame.style.display = 'block';
+        }
 
         const card = document.createElement('div');
         card.className = `frame-card ${isSelected ? 'active' : ''}`;
@@ -542,6 +558,11 @@
 
         frameGrid.appendChild(card);
       });
+
+      // Si le cadre sélectionné a été supprimé à distance
+      if (selectedFrameData && !hasActiveFrame) {
+        selectFrame(null, 'card-none');
+      }
     }, (error) => {
       console.error("Erreur chargement cadres:", error);
     });
@@ -573,79 +594,3 @@
         } catch (e) {
           console.error("Erreur de suppression du cadre:", e);
         }
-      }
-    };
-
-    // ÉCOUTE FIRESTORE DES PHOTOS EN TEMPS RÉEL
-    const photosQuery = query(collection(db, "photos"), orderBy("timestamp", "desc"));
-    onSnapshot(photosQuery, (snapshot) => {
-      currentPhotosList = [];
-      galleryGrid.innerHTML = "";
-      photoCountEl.innerText = snapshot.size;
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const id = docSnap.id;
-        currentPhotosList.push({ id, ...data });
-
-        const gridItem = document.createElement('div');
-        gridItem.className = 'gallery-item';
-        gridItem.innerHTML = `
-          <img src="${data.image}" alt="Photo ${data.timestamp}" />
-          <div class="gallery-item-actions">
-            <a href="${data.image}" download="photo_dj_ice_${data.timestamp}.jpg">💾 Télécharger</a>
-            <button class="btn-delete" onclick="deletePhoto('${id}')">🗑️ Supprimer</button>
-          </div>
-        `;
-        galleryGrid.appendChild(gridItem);
-      });
-    });
-
-    window.deletePhoto = async function(id) {
-      if (confirm("Voulez-vous vraiment supprimer cette photo ?")) {
-        try {
-          await deleteDoc(doc(db, "photos", id));
-        } catch (e) {
-          console.error("Erreur de suppression:", e);
-        }
-      }
-    };
-
-    window.toggleFrameModal = function() {
-      frameModal.style.display = (frameModal.style.display === 'flex') ? 'none' : 'flex';
-    };
-
-    window.toggleGallery = function() {
-      galleryModal.style.display = (galleryModal.style.display === 'flex') ? 'none' : 'flex';
-    };
-
-    window.downloadAllZip = function() {
-      if (currentPhotosList.length === 0) {
-        alert("Aucune photo dans la galerie.");
-        return;
-      }
-
-      const zip = new JSZip();
-      currentPhotosList.forEach((item, index) => {
-        const base64Data = item.image.replace(/^data:image\/jpeg;base64,/, "");
-        zip.file(`photo_dj_ice_${index + 1}.jpg`, base64Data, { base64: true });
-      });
-
-      zip.generateAsync({ type: "blob" }).then((content) => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = "photobooth_dj_ice_soiree.zip";
-        a.click();
-      });
-    };
-
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && startBtn.style.display !== 'none') {
-        startPhotobooth();
-      }
-    });
-
-    initCamera();
-  </script>
-</body>
-</html>
