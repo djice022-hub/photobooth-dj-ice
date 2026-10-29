@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Photobooth - DJ ICE</title>
   
+  <!-- Configuration Web App (PWA) Plein Écran pour Tablette -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DJ ICE Photo">
@@ -38,15 +39,13 @@
       overflow: hidden;
     }
     
-    #photoResult {
+    video, #photoResult {
       width: 100%;
       height: 100%;
       object-fit: cover;
       position: absolute;
       top: 0;
       left: 0;
-      display: none;
-      z-index: 5;
     }
 
     .overlay-frame {
@@ -59,6 +58,9 @@
       object-fit: fill; 
       z-index: 10;
     }
+    
+    #photoResult { display: none; z-index: 5; }
+    video { z-index: 1; }
     
     .countdown {
       position: absolute;
@@ -120,7 +122,7 @@
       z-index: 35;
     }
 
-    .btn-top {
+    .btn-top, .select-cam {
       padding: 12px 20px;
       background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(10px);
@@ -131,6 +133,16 @@
       font-weight: bold;
       font-size: 1rem;
       outline: none;
+    }
+
+    .select-cam {
+      max-width: 200px;
+      text-overflow: ellipsis;
+    }
+
+    .select-cam option {
+      background: #111;
+      color: white;
     }
 
     #djNotice {
@@ -312,20 +324,24 @@
 <body>
 
   <div class="container">
+    <video id="webcam" autoplay playsinline muted></video>
     <img id="photoResult" alt="Photo prise" />
     <img id="frame" class="overlay-frame" src="" alt="Cadre" onError="this.style.display='none'" />
     
-    <button id="enableCamBtn" class="btn-cam-enable" onclick="initCamera()">🎥 TOUCHER POUR ACTIVER LA CAMÉRA USB</button>
+    <button id="enableCamBtn" class="btn-cam-enable" onclick="initCamera()">🎥 TOUCHER POUR ACTIVER LA CAMÉRA</button>
 
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
+      <select id="cameraSelect" class="select-cam" onchange="changeCamera(this.value)">
+        <option value="">Chargement caméras...</option>
+      </select>
       <button class="btn-top" onclick="toggleFrameModal()">🖼 Cadres</button>
       <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
       <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
     </div>
 
-    <div id="djNotice">📱 Venez chercher votre photo auprès du DJ pour qu'il vous l'imprime, merci</div>
+    <div id="djNotice">📱 Venez chercher votre photo auprès du DJ pour qu'il vous l'imprime,merci</div>
     <div id="reloadNotice">Photo affichée pendant <span id="timerSec">15</span>s...</div>
     <button id="startBtn" class="btn-shoot" onclick="startPhotobooth()">📸 PRENDRE UNE PHOTO</button>
   </div>
@@ -363,12 +379,13 @@
     <div id="galleryGrid" class="grid-container"></div>
   </div>
 
+  <canvas id="canvas" style="display:none;"></canvas>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
       getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { UsbCamera } from '@periksa/cap-usb-camera';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAY9K0dGnFDUSHV3W7G5l6X_XrlXub5scs",
@@ -382,10 +399,12 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    const video = document.getElementById('webcam');
     const photoResult = document.getElementById('photoResult');
     const countdownEl = document.getElementById('countdown');
     const startBtn = document.getElementById('startBtn');
     const enableCamBtn = document.getElementById('enableCamBtn');
+    const canvas = document.getElementById('canvas');
     const frame = document.getElementById('frame');
     const djNotice = document.getElementById('djNotice');
     const galleryModal = document.getElementById('galleryModal');
@@ -395,20 +414,76 @@
     const photoCountEl = document.getElementById('photoCount');
     const reloadNotice = document.getElementById('reloadNotice');
     const timerSec = document.getElementById('timerSec');
+    const cameraSelect = document.getElementById('cameraSelect');
 
     let reloadTimer = null;
     let selectedFrameData = null;
     let currentPhotosList = [];
+    let currentDeviceId = null;
 
-    // Initialisation de la caméra USB native
-    window.initCamera = async function() {
+    // Initialisation et énumération des caméras
+    window.initCamera = async function(targetDeviceId = null) {
       enableCamBtn.style.display = 'none';
-      try {
-        await UsbCamera.startCamera();
-      } catch (e) {
-        console.error("Erreur d'initialisation de la caméra USB :", e);
-        enableCamBtn.style.display = 'block';
+      
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
       }
+
+      try {
+        // Demande initiale pour déverrouiller l'accès aux labels des périphériques USB
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        tempStream.getTracks().forEach(track => track.stop());
+
+        // Récupérer la liste des caméras
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        cameraSelect.innerHTML = "";
+        videoDevices.forEach((device, index) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          // Nommer clairement si c'est l'Anker ou un autre
+          let name = device.label || `Caméra ${index + 1}`;
+          if (name.toLowerCase().includes('anker') || name.toLowerCase().includes('powerconf')) {
+            name = "✨ Anker C200 (" + name + ")";
+          }
+          option.text = name;
+          if (targetDeviceId ? device.deviceId === targetDeviceId : (index === videoDevices.length - 1)) {
+            option.selected = true;
+            currentDeviceId = device.deviceId;
+          }
+          cameraSelect.appendChild(option);
+        });
+
+        // Si aucun deviceId cible n'est forcé, on prend le dernier sélectionné ou le dernier de la liste (souvent l'externe)
+        const deviceToUse = targetDeviceId || currentDeviceId || (videoDevices.length > 0 ? videoDevices[videoDevices.length - 1].deviceId : null);
+
+        const constraints = {
+          video: deviceToUse ? { deviceId: { exact: deviceToUse } } : true,
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+
+      } catch (e) {
+        console.warn("Échec configuration caméra, repli par défaut :", e);
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          video.srcObject = fallbackStream;
+          await video.play();
+        } catch (err) {
+          console.error("Erreur critique caméra :", err);
+          enableCamBtn.style.display = 'block';
+        }
+      }
+    };
+
+    // Changement manuel via le menu déroulant
+    window.changeCamera = function(deviceId) {
+      currentDeviceId = deviceId;
+      initCamera(deviceId);
     };
 
     window.resetToCamera = function() {
@@ -416,57 +491,87 @@
       photoResult.style.display = 'none';
       djNotice.style.display = 'none';
       reloadNotice.style.display = 'none';
+      video.style.display = 'block';
       startBtn.style.display = 'block';
-      initCamera();
+      
+      if (!video.srcObject || video.paused) {
+        initCamera(currentDeviceId);
+      }
     };
 
-    // Compte à rebours et prise de photo via le plugin USB
     window.startPhotobooth = function() {
+      if (!video.srcObject) {
+        initCamera(currentDeviceId);
+        return;
+      }
       startBtn.style.display = 'none';
       photoResult.style.display = 'none';
       djNotice.style.display = 'none';
       reloadNotice.style.display = 'none';
+      video.style.display = 'block';
       
       let count = 3;
       countdownEl.innerText = count;
       countdownEl.style.display = 'block';
 
-      const timer = setInterval(async () => {
+      const timer = setInterval(() => {
         count--;
         if (count > 0) {
           countdownEl.innerText = count;
         } else {
           clearInterval(timer);
           countdownEl.style.display = 'none';
-
-          try {
-            // Capture de l'image depuis la caméra USB externe
-            const result = await UsbCamera.takePicture({ saveToStorage: false });
-            
-            if (result && (result.imagePath || result.data)) {
-              const rawData = result.imagePath || result.data;
-              const imageData = rawData.startsWith('data:') ? rawData : ('data:image/jpeg;base64,' + rawData);
-
-              photoResult.src = imageData;
-              photoResult.style.display = 'block';
-              djNotice.style.display = 'block';
-              reloadNotice.style.display = 'block';
-
-              // Enregistrement sur Firestore
-              await addDoc(collection(db, "photos"), {
-                image: imageData,
-                timestamp: Date.now(),
-                frameUsed: selectedFrameData ? selectedFrameData.name : 'aucun'
-              });
-            }
-          } catch (e) {
-            console.error("Erreur lors de la capture USB :", e);
-            alert("Erreur de capture avec la caméra USB.");
-            startBtn.style.display = 'block';
-          }
+          takePhoto();
         }
       }, 1000);
     };
+
+    async function takePhoto() {
+      const context = canvas.getContext('2d');
+      const w = video.videoWidth || 1280;
+      const h = video.videoHeight || 720;
+      canvas.width = w;
+      canvas.height = h;
+
+      context.drawImage(video, 0, 0, w, h);
+
+      if (frame.src && frame.style.display !== 'none' && frame.complete && frame.naturalWidth !== 0) {
+        context.drawImage(frame, 0, 0, w, h);
+      }
+
+      const imageData = canvas.toDataURL('image/jpeg', 0.85);
+
+      photoResult.src = imageData;
+      video.style.display = 'none';
+      photoResult.style.display = 'block';
+      djNotice.style.display = 'block';
+      reloadNotice.style.display = 'block';
+
+      try {
+        const timestamp = Date.now();
+        await addDoc(collection(db, "photos"), {
+          image: imageData,
+          timestamp: timestamp,
+          frameUsed: selectedFrameData ? selectedFrameData.name : 'aucun'
+        });
+      } catch (e) {
+        console.error("Erreur d'enregistrement dans Firestore:", e);
+      }
+
+      let timeLeft = 15;
+      timerSec.innerText = timeLeft;
+      
+      if (reloadTimer) clearInterval(reloadTimer);
+      
+      reloadTimer = setInterval(() => {
+        timeLeft--;
+        timerSec.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(reloadTimer);
+          resetToCamera();
+        }
+      }, 1000);
+    }
 
     window.handleFrameUpload = function(e) {
       const file = e.target.files[0];
@@ -564,6 +669,8 @@
       if (selectedFrameData && !hasActiveFrame) {
         selectFrame(null, 'card-none');
       }
+    }, (error) => {
+      console.error("Erreur chargement cadres:", error);
     });
 
     window.selectFrame = function(frameObj, cardId) {
@@ -640,7 +747,7 @@
 
     window.downloadAllZip = function() {
       if (currentPhotosList.length === 0) {
-        alert("Aucune photo dans la galerie.");
+        alert("Aucune photo dans laa galerie.");
         return;
       }
 
@@ -658,7 +765,13 @@
       });
     };
 
-    // Lancement initial de la caméra USB
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && startBtn.style.display !== 'none') {
+        startPhotobooth();
+      }
+    });
+
+    // Lancement initial
     initCamera();
   </script>
 </body>
