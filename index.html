@@ -118,10 +118,11 @@
       right: 20px;
       display: flex;
       gap: 12px;
+      align-items: center;
       z-index: 35;
     }
 
-    .btn-top {
+    .btn-top, .select-cam {
       padding: 12px 20px;
       background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(10px);
@@ -131,6 +132,17 @@
       cursor: pointer;
       font-weight: bold;
       font-size: 1rem;
+      outline: none;
+    }
+
+    .select-cam {
+      max-width: 200px;
+      text-overflow: ellipsis;
+    }
+
+    .select-cam option {
+      background: #111;
+      color: white;
     }
 
     #djNotice {
@@ -321,7 +333,9 @@
     <div id="countdown" class="countdown">3</div>
     
     <div class="top-bar">
-      <button class="btn-top" onclick="initCamera()">📷 Caméra</button>
+      <select id="cameraSelect" class="select-cam" onchange="changeCamera(this.value)">
+        <option value="">Chargement caméras...</option>
+      </select>
       <button class="btn-top" onclick="toggleFrameModal()">🖼 Cadres</button>
       <button class="btn-top" onclick="resetToCamera()">🔄 Rafraîchir</button>
       <button class="btn-top" onclick="toggleGallery()">🖼️ Galerie (<span id="photoCount">0</span>)</button>
@@ -400,38 +414,76 @@
     const photoCountEl = document.getElementById('photoCount');
     const reloadNotice = document.getElementById('reloadNotice');
     const timerSec = document.getElementById('timerSec');
+    const cameraSelect = document.getElementById('cameraSelect');
 
     let reloadTimer = null;
     let selectedFrameData = null;
     let currentPhotosList = [];
+    let currentDeviceId = null;
 
-    window.initCamera = async function() {
+    // Initialisation et énumération des caméras
+    window.initCamera = async function(targetDeviceId = null) {
       enableCamBtn.style.display = 'none';
       
       if (video.srcObject) {
         video.srcObject.getTracks().forEach(track => track.stop());
       }
 
-      // Contraintes très souples pour compatibilité maximale sur tablette
-      const constraintsList = [
-        { video: { facingMode: { ideal: "user" } }, audio: false },
-        { video: { facingMode: "environment" }, audio: false },
-        { video: true, audio: false }
-      ];
+      try {
+        // Demande initiale pour déverrouiller l'accès aux labels des périphériques USB
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        tempStream.getTracks().forEach(track => track.stop());
 
-      for (let constraints of constraintsList) {
+        // Récupérer la liste des caméras
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        cameraSelect.innerHTML = "";
+        videoDevices.forEach((device, index) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          // Nommer clairement si c'est l'Anker ou un autre
+          let name = device.label || `Caméra ${index + 1}`;
+          if (name.toLowerCase().includes('anker') || name.toLowerCase().includes('powerconf')) {
+            name = "✨ Anker C200 (" + name + ")";
+          }
+          option.text = name;
+          if (targetDeviceId ? device.deviceId === targetDeviceId : (index === videoDevices.length - 1)) {
+            option.selected = true;
+            currentDeviceId = device.deviceId;
+          }
+          cameraSelect.appendChild(option);
+        });
+
+        // Si aucun deviceId cible n'est forcé, on prend le dernier sélectionné ou le dernier de la liste (souvent l'externe)
+        const deviceToUse = targetDeviceId || currentDeviceId || (videoDevices.length > 0 ? videoDevices[videoDevices.length - 1].deviceId : null);
+
+        const constraints = {
+          video: deviceToUse ? { deviceId: { exact: deviceToUse } } : true,
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+
+      } catch (e) {
+        console.warn("Échec configuration caméra, repli par défaut :", e);
         try {
-          const stream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = stream;
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          video.srcObject = fallbackStream;
           await video.play();
-          return; // Succès !
-        } catch (e) {
-          console.warn("Échec configuration caméra :", e);
+        } catch (err) {
+          console.error("Erreur critique caméra :", err);
+          enableCamBtn.style.display = 'block';
         }
       }
+    };
 
-      // Si toutes les tentatives automatiques échouent
-      enableCamBtn.style.display = 'block';
+    // Changement manuel via le menu déroulant
+    window.changeCamera = function(deviceId) {
+      currentDeviceId = deviceId;
+      initCamera(deviceId);
     };
 
     window.resetToCamera = function() {
@@ -443,13 +495,13 @@
       startBtn.style.display = 'block';
       
       if (!video.srcObject || video.paused) {
-        initCamera();
+        initCamera(currentDeviceId);
       }
     };
 
     window.startPhotobooth = function() {
       if (!video.srcObject) {
-        initCamera();
+        initCamera(currentDeviceId);
         return;
       }
       startBtn.style.display = 'none';
@@ -719,7 +771,7 @@
       }
     });
 
-    // Tentative de lancement
+    // Lancement initial
     initCamera();
   </script>
 </body>
