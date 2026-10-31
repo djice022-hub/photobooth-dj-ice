@@ -42,7 +42,7 @@
     video, #photoResult {
       width: 100%;
       height: 100%;
-      object-fit: cover; /* Remise du zoom plein écran d'origine */
+      object-fit: cover; /* Mode zoom plein écran actif */
       position: absolute;
       top: 0;
       left: 0;
@@ -534,8 +534,8 @@
         context.drawImage(frame, 0, 0, w, h);
       }
 
-      // Qualité photo au maximum (1.0)
-      const imageData = canvas.toDataURL('image/jpeg', 1.0);
+      // Qualité photo réglée à 0.7 avec le zoom (object-fit: cover) actif
+      const imageData = canvas.toDataURL('image/jpeg', 0.7);
 
       photoResult.src = imageData;
       video.style.display = 'none';
@@ -601,7 +601,7 @@
           const compressedBase64 = tempCanvas.toDataURL('image/png');
           const name = file.name.replace('.png', '');
 
-          try {
+       try {
             await addDoc(collection(db, "frames"), {
               name: name,
               image: compressedBase64,
