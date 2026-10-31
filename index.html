@@ -421,7 +421,7 @@
     let currentPhotosList = [];
     let currentDeviceId = null;
 
-    // Initialisation et énumération des caméras
+    // Initialisation et énumération des caméras (Optimisé pour forcer la meilleure qualité 1080p)
     window.initCamera = async function(targetDeviceId = null) {
       enableCamBtn.style.display = 'none';
       
@@ -430,8 +430,8 @@
       }
 
       try {
-        // Demande initiale pour déverrouiller l'accès aux labels des périphériques USB
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        // Demande initiale pour déverrouiller l'accès aux labels des périphériques
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
         tempStream.getTracks().forEach(track => track.stop());
 
         // Récupérer la liste des caméras
@@ -442,7 +442,6 @@
         videoDevices.forEach((device, index) => {
           const option = document.createElement('option');
           option.value = device.deviceId;
-          // Nommer clairement si c'est l'Anker ou un autre
           let name = device.label || `Caméra ${index + 1}`;
           if (name.toLowerCase().includes('anker') || name.toLowerCase().includes('powerconf')) {
             name = "✨ Anker C200 (" + name + ")";
@@ -455,11 +454,18 @@
           cameraSelect.appendChild(option);
         });
 
-        // Si aucun deviceId cible n'est forcé, on prend le dernier sélectionné ou le dernier de la liste (souvent l'externe)
         const deviceToUse = targetDeviceId || currentDeviceId || (videoDevices.length > 0 ? videoDevices[videoDevices.length - 1].deviceId : null);
 
+        // Contraintes optimisées pour forcer la haute définition (1080p)
         const constraints = {
-          video: deviceToUse ? { deviceId: { exact: deviceToUse } } : true,
+          video: deviceToUse ? { 
+            deviceId: { exact: deviceToUse },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          } : {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
           audio: false
         };
 
@@ -468,7 +474,7 @@
         await video.play();
 
       } catch (e) {
-        console.warn("Échec configuration caméra, repli par défaut :", e);
+        console.warn("Échec configuration caméra HD, repli par défaut :", e);
         try {
           const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           video.srcObject = fallbackStream;
@@ -528,8 +534,8 @@
 
     async function takePhoto() {
       const context = canvas.getContext('2d');
-      const w = video.videoWidth || 1280;
-      const h = video.videoHeight || 720;
+      const w = video.videoWidth || 1920;
+      const h = video.videoHeight || 1080;
       canvas.width = w;
       canvas.height = h;
 
@@ -539,7 +545,8 @@
         context.drawImage(frame, 0, 0, w, h);
       }
 
-      const imageData = canvas.toDataURL('image/jpeg', 0.85);
+      // Augmentation de la qualité JPEG à 0.95 pour un rendu optimal
+      const imageData = canvas.toDataURL('image/jpeg', 0.95);
 
       photoResult.src = imageData;
       video.style.display = 'none';
@@ -582,7 +589,7 @@
         const img = new Image();
         img.onload = async function() {
           const tempCanvas = document.createElement('canvas');
-          const maxDim = 1280;
+          const maxDim = 1920;
           let width = img.width;
           let height = img.height;
 
@@ -747,7 +754,7 @@
 
     window.downloadAllZip = function() {
       if (currentPhotosList.length === 0) {
-        alert("Aucune photo dans laa galerie.");
+        alert("Aucune photo dans la galerie.");
         return;
       }
 
