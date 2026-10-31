@@ -421,7 +421,7 @@
     let currentPhotosList = [];
     let currentDeviceId = null;
 
-    // Initialisation et énumération des caméras (Optimisé pour forcer la meilleure qualité 1080p)
+    // Initialisation et énumération des caméras (Contraintes strictes haute résolution)
     window.initCamera = async function(targetDeviceId = null) {
       enableCamBtn.style.display = 'none';
       
@@ -430,11 +430,12 @@
       }
 
       try {
-        // Demande initiale pour déverrouiller l'accès aux labels des périphériques
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+        const tempStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: { min: 1280, ideal: 1920, max: 3840 }, height: { min: 720, ideal: 1080, max: 2160 } }, 
+          audio: false 
+        });
         tempStream.getTracks().forEach(track => track.stop());
 
-        // Récupérer la liste des caméras
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
         
@@ -456,15 +457,14 @@
 
         const deviceToUse = targetDeviceId || currentDeviceId || (videoDevices.length > 0 ? videoDevices[videoDevices.length - 1].deviceId : null);
 
-        // Contraintes optimisées pour forcer la haute définition (1080p)
         const constraints = {
           video: deviceToUse ? { 
             deviceId: { exact: deviceToUse },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { min: 1280, ideal: 1920, max: 3840 },
+            height: { min: 720, ideal: 1080, max: 2160 }
           } : {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { min: 1280, ideal: 1920, max: 3840 },
+            height: { min: 720, ideal: 1080, max: 2160 }
           },
           audio: false
         };
@@ -486,7 +486,6 @@
       }
     };
 
-    // Changement manuel via le menu déroulant
     window.changeCamera = function(deviceId) {
       currentDeviceId = deviceId;
       initCamera(deviceId);
@@ -545,7 +544,6 @@
         context.drawImage(frame, 0, 0, w, h);
       }
 
-      // Augmentation de la qualité JPEG à 0.95 pour un rendu optimal
       const imageData = canvas.toDataURL('image/jpeg', 0.95);
 
       photoResult.src = imageData;
